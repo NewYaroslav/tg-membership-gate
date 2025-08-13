@@ -16,6 +16,7 @@ from modules.storage import (
     db_set_ban,
     ROOT_ADMIN_ID,
 )
+from modules.auth_utils import is_admin
 from modules.states import UserState
 from modules.template_engine import render_template
 from modules.log_utils import log_async_call
@@ -116,12 +117,20 @@ async def handle_unknown_message(update: Update, context: ContextTypes.DEFAULT_T
 @log_async_call
 async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user = update.effective_user
+    if not is_admin(user.id):
+        await query.answer(render_template("not_authorized.txt"), show_alert=True)
+        return
     data = query.data.split(":")
     action = data[0]
     membership_id = data[1]
+    if not id_pattern.fullmatch(membership_id):
+        await query.answer(render_template("invalid_id.txt"), show_alert=True)
+        return
     member = db_get_member_by_id(membership_id)
     if not member:
-        await query.answer("ID не найден", show_alert=True)
+        text = render_template("admin_id_not_found.txt", membership_id=membership_id)
+        await query.answer(text, show_alert=True)
         return
     user_id = member.get("telegram_id")
     if action == "approve":
@@ -132,19 +141,19 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
             links = ACCESS_LINKS
             text = render_template(templates.get("granted", "access_granted.txt"), links=links)
             await context.bot.send_message(chat_id=user_id, text=text)
-        await query.edit_message_text(f"ID {membership_id} подтверждён")
+        await query.edit_message_text(render_template("admin_approved.txt", membership_id=membership_id))
     elif action == "decline":
         db_set_confirmation(membership_id, False, None)
         if user_id:
             text = render_template(templates.get("denied", "access_denied.txt"))
             await context.bot.send_message(chat_id=user_id, text=text)
-        await query.edit_message_text(f"ID {membership_id} отклонён")
+        await query.edit_message_text(render_template("admin_declined.txt", membership_id=membership_id))
     elif action == "ban":
         db_set_ban(membership_id, True)
         if user_id:
             text = render_template(templates.get("banned", "id_banned.txt"), membership_id=membership_id)
             await context.bot.send_message(chat_id=user_id, text=text)
-        await query.edit_message_text(f"ID {membership_id} заблокирован")
+        await query.edit_message_text(render_template("admin_banned.txt", membership_id=membership_id))
     else:
-        await query.answer("Неизвестное действие")
+        await query.answer(render_template("unknown_action.txt"))
 

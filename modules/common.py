@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes
 from modules.template_engine import render_template
 from modules.states import UserState
 from modules.config import telegram_start
-from modules.storage import db_is_admin
+from modules.auth_utils import is_admin
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
 from modules.inactivity import clear_user_activity
@@ -35,7 +35,7 @@ async def handle_start_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
 @log_async_call
 async def handle_help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    template = "help_admin.txt" if db_is_admin(update.effective_user.id) else "help_user.txt"
+    template = "help_admin.txt" if is_admin(update.effective_user.id) else "help_user.txt"
     text = render_template(template)
     await update.message.reply_text(text)
 
