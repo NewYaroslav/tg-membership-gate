@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
@@ -13,12 +14,13 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schema" / "sqlite.sql"
 
 
 class SQLiteAdapter(DatabaseAdapter):
-    """SQLite implementation."""
+    """SQLite implementation of the database adapter."""
 
     def __init__(self, db_path: str, log_queries: bool = False) -> None:
         self.db_path = db_path
         self.log_queries = log_queries
 
+    # Internal helpers -------------------------------------------------
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.db_path)
 
@@ -49,6 +51,7 @@ class SQLiteAdapter(DatabaseAdapter):
         finally:
             conn.close()
 
+    # Schema -----------------------------------------------------------
     def init(self) -> None:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         conn = self._connect()
@@ -60,162 +63,106 @@ class SQLiteAdapter(DatabaseAdapter):
         finally:
             conn.close()
 
-    def add_allowed_email(self, email: str) -> None:
+    # Member operations ------------------------------------------------
+    def get_member_by_telegram(self, telegram_id: int) -> Optional[dict[str, Any]]:
+        row = self._run(
+            "SELECT * FROM members WHERE telegram_id=?",
+            [telegram_id],
+            fetchone=True,
+        )
+        return dict(row) if row else None
+
+    def get_member_by_membership_id(self, membership_id: str) -> Optional[dict[str, Any]]:
+        row = self._run(
+            "SELECT * FROM members WHERE membership_id=?",
+            [membership_id],
+            fetchone=True,
+        )
+        return dict(row) if row else None
+
+    def upsert_member(
+        self,
+        membership_id: str,
+        telegram_id: int,
+        username: str | None,
+        full_name: str | None,
+        is_confirmed: bool = False,
+    ) -> None:
         self._run(
             """
-            INSERT INTO allowed_emails (email, is_banned)
-            VALUES (?, 0)
-            ON CONFLICT(email) DO UPDATE SET is_banned=0
+            INSERT INTO members (membership_id, telegram_id, username, full_name, is_confirmed)
+            VALUES (?,?,?,?,?)
+            ON CONFLICT(membership_id) DO UPDATE SET
+                telegram_id=excluded.telegram_id,
+                username=excluded.username,
+                full_name=excluded.full_name
             """,
-            [email],
+            [membership_id, telegram_id, username, full_name, int(is_confirmed)],
         )
-        row = self._run(
-            "SELECT id FROM allowed_emails WHERE email=?", [email], fetchone=True
-        )
-        if row:
-            email_id = row[0]
-            self._run(
-                """
-                UPDATE users SET is_authorized=1
-                WHERE email_id=? AND is_authorized=0
-                """,
-                [email_id],
-            )
-        else:
-            logger.warning("Email %s inserted but id not found", email)
 
-    def get_telegram_ids_by_email(self, email: str) -> list[int]:
-        row = self._run(
-            "SELECT id FROM allowed_emails WHERE email=?", [email], fetchone=True
+    def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
+        expires = expires_at.isoformat() if expires_at else None
+        self._run(
+            "UPDATE members SET is_confirmed=?, expires_at=?, warning_sent=0 WHERE membership_id=?",
+            [int(is_confirmed), expires, membership_id],
         )
-        if not row:
-            return []
-        email_id = row[0]
+
+    def set_ban(self, membership_id: str, is_banned: bool) -> None:
+        self._run(
+            "UPDATE members SET is_banned=? WHERE membership_id=?",
+            [int(is_banned), membership_id],
+        )
+
+    def update_expiration(self, membership_id: str, expires_at: datetime | None) -> None:
+        expires = expires_at.isoformat() if expires_at else None
+        self._run(
+            "UPDATE members SET expires_at=?, warning_sent=0 WHERE membership_id=?",
+            [expires, membership_id],
+        )
+
+    def fetch_members_for_warning(self, now: datetime, threshold: int) -> list[dict[str, Any]]:
         rows = self._run(
-            "SELECT telegram_id FROM users WHERE email_id=?",
-            [email_id],
+            "SELECT * FROM members WHERE is_confirmed=1 AND expires_at IS NOT NULL AND warning_sent=0",
             fetchall=True,
         )
-        return [r[0] for r in rows]
+        result: list[dict[str, Any]] = []
+        for r in rows:
+            expires = datetime.fromisoformat(r["expires_at"])
+            if 0 < (expires - now).total_seconds() <= threshold:
+                result.append(dict(r))
+        return result
 
-    def remove_allowed_email(self, email: str) -> None:
-        self._run("DELETE FROM allowed_emails WHERE email=?", [email])
-
-    def unlink_users_from_email(self, email: str) -> None:
-        row = self._run(
-            "SELECT id FROM allowed_emails WHERE email=?", [email], fetchone=True
-        )
-        if not row:
-            return
-        email_id = row[0]
-        self._run(
-            "UPDATE users SET email_id=NULL, is_authorized=0 WHERE email_id=?",
-            [email_id],
-        )
-        self._run("DELETE FROM allowed_emails WHERE id=?", [email_id])
-
-    def ban_allowed_email(self, email: str) -> None:
-        self._run(
-            "UPDATE allowed_emails SET is_banned=1 WHERE email=?", [email]
-        )
-
-    def unban_allowed_email(self, email: str) -> None:
-        self._run(
-            "UPDATE allowed_emails SET is_banned=0 WHERE email=?", [email]
-        )
-
-    def get_user_by_telegram_id(self, telegram_id: int) -> Optional[dict[str, Any]]:
-        row = self._run(
-            "SELECT * FROM users WHERE telegram_id=?",
-            [telegram_id],
-            fetchone=True,
-        )
-        return dict(row) if row else None
-
-    def get_users_by_email(self, email: str) -> list[dict[str, Any]]:
-        row = self._run(
-            "SELECT id FROM allowed_emails WHERE email=?", [email], fetchone=True
-        )
-        if not row:
-            return []
-        email_id = row[0]
+    def fetch_expired_members(self, now: datetime) -> list[dict[str, Any]]:
         rows = self._run(
-            "SELECT * FROM users WHERE email_id=?", [email_id], fetchall=True
+            "SELECT * FROM members WHERE is_confirmed=1 AND expires_at IS NOT NULL",
+            fetchall=True,
         )
-        return [dict(r) for r in rows]
+        result: list[dict[str, Any]] = []
+        for r in rows:
+            expires = datetime.fromisoformat(r["expires_at"])
+            if expires <= now:
+                result.append(dict(r))
+        return result
 
-    def get_email_by_id(self, email_id: int) -> Optional[str]:
-        row = self._run(
-            "SELECT email FROM allowed_emails WHERE id=?", [email_id], fetchone=True
-        )
-        return row[0] if row else None
+    def mark_warning_sent(self, telegram_id: int) -> None:
+        self._run("UPDATE members SET warning_sent=1 WHERE telegram_id=?", [telegram_id])
 
-    def get_email_row(self, email: str) -> Optional[dict[str, Any]]:
-        row = self._run(
-            "SELECT * FROM allowed_emails WHERE email=?", [email], fetchone=True
-        )
-        return dict(row) if row else None
-
-    def add_user(
-        self,
-        email: str,
-        telegram_id: int,
-        username: str | None = None,
-        full_name: str | None = None,
-        authorized: bool = True,
-    ) -> None:
-        row = self._run(
-            "SELECT id, is_banned FROM allowed_emails WHERE email=?",
-            [email],
-            fetchone=True,
-        )
-        if not row:
-            self._run(
-                "INSERT INTO allowed_emails (email, is_banned) VALUES (?,1)",
-                [email],
-            )
-            row = self._run(
-                "SELECT id, is_banned FROM allowed_emails WHERE email=?",
-                [email],
-                fetchone=True,
-            )
-        email_id, is_banned = row
-        is_authorized = int(authorized and not is_banned)
-        self._run(
-            """
-            INSERT OR REPLACE INTO users
-            (telegram_id, username, full_name, email_id, is_authorized)
-            VALUES (?,?,?,?,?)
-            """,
-            [telegram_id, username, full_name, email_id, is_authorized],
-        )
-
-    def update_user_email(self, telegram_id: int, new_email: str) -> bool:
-        row = self._run(
-            "SELECT id, is_banned FROM allowed_emails WHERE email=?",
-            [new_email],
-            fetchone=True,
-        )
-        if not row or row[1]:
-            return False
-        email_id = row[0]
-        self._run(
-            "UPDATE users SET email_id=?, is_authorized=1 WHERE telegram_id=?",
-            [email_id, telegram_id],
-        )
-        return True
-
+    # Admin operations --------------------------------------------------
     def is_admin(self, telegram_id: int) -> bool:
         row = self._run(
-            "SELECT COUNT(*) FROM admins WHERE telegram_id=?",
+            "SELECT 1 FROM admins WHERE telegram_id=?",
             [telegram_id],
             fetchone=True,
         )
-        return row[0] > 0 if row else False
+        return row is not None
 
     def add_admin(self, telegram_id: int, is_top_level: bool = False) -> None:
         self._run(
-            "INSERT OR REPLACE INTO admins (telegram_id, is_top_level) VALUES (?,?)",
+            """
+            INSERT INTO admins (telegram_id, is_top_level)
+            VALUES (?,?)
+            ON CONFLICT(telegram_id) DO UPDATE SET is_top_level=excluded.is_top_level
+            """,
             [telegram_id, int(is_top_level)],
         )
 
@@ -226,5 +173,7 @@ class SQLiteAdapter(DatabaseAdapter):
         rows = self._run("SELECT * FROM admins", fetchall=True)
         return [dict(r) for r in rows]
 
+    # Testing helper ---------------------------------------------------
     def execute(self, sql: str, params: Iterable[Any] | None = None) -> None:
         self._run(sql, params)
+

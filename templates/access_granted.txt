@@ -1,0 +1,4 @@
+Ваш доступ подтверждён.
+{% if links %}Ссылки для входа:
+{% for link in links %}- {{ link }}
+{% endfor %}{% endif %}

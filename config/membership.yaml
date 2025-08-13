@@ -1,0 +1,17 @@
+id:
+  pattern: "^[0-9]+$"  # по умолчанию ожидаем только цифры
+
+admin:
+  approve_durations:
+    - 0        # бессрочно
+    - 2592000 # 30 дней
+  enable_decline: true
+  enable_ban: true
+
+expiration:
+  check_interval: 60
+  warn_before_sec: 86400
+
+session_timeout:
+  seconds: 900
+  send_message: false

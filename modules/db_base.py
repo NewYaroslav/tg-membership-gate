@@ -1,12 +1,13 @@
-"""Database adapter interface."""
+"""Database adapter interface for membership management."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Iterable, Optional
 
 
 class DatabaseAdapter(ABC):
-    """Interface for database operations."""
+    """Interface for database operations used by the bot."""
 
     log_queries: bool
 
@@ -14,55 +15,51 @@ class DatabaseAdapter(ABC):
     def init(self) -> None:
         """Initialize database schema."""
 
+    # -- Member operations -------------------------------------------------
     @abstractmethod
-    def add_allowed_email(self, email: str) -> None:
-        """Insert or unban an email."""
+    def get_member_by_telegram(self, telegram_id: int) -> Optional[dict[str, Any]]:
+        """Return member row by Telegram ID."""
 
     @abstractmethod
-    def get_telegram_ids_by_email(self, email: str) -> list[int]:
-        """Return Telegram IDs linked with email."""
+    def get_member_by_membership_id(self, membership_id: str) -> Optional[dict[str, Any]]:
+        """Return member row by membership ID."""
 
     @abstractmethod
-    def remove_allowed_email(self, email: str) -> None:
-        """Delete email from whitelist."""
+    def upsert_member(
+        self,
+        membership_id: str,
+        telegram_id: int,
+        username: str | None,
+        full_name: str | None,
+        is_confirmed: bool = False,
+    ) -> None:
+        """Insert or update member information."""
 
     @abstractmethod
-    def unlink_users_from_email(self, email: str) -> None:
-        """Unlink users and delete email."""
+    def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
+        """Set confirmation status and expiration time for member."""
 
     @abstractmethod
-    def ban_allowed_email(self, email: str) -> None:
-        """Mark email as banned."""
+    def set_ban(self, membership_id: str, is_banned: bool) -> None:
+        """Set ban flag for member."""
 
     @abstractmethod
-    def unban_allowed_email(self, email: str) -> None:
-        """Remove ban from email."""
+    def update_expiration(self, membership_id: str, expires_at: datetime | None) -> None:
+        """Update member expiration timestamp."""
 
     @abstractmethod
-    def get_user_by_telegram_id(self, telegram_id: int) -> Optional[dict[str, Any]]:
-        """Fetch user by Telegram ID."""
+    def fetch_members_for_warning(self, now: datetime, threshold: int) -> list[dict[str, Any]]:
+        """Return members whose expiration is within threshold seconds and warning not sent."""
 
     @abstractmethod
-    def get_users_by_email(self, email: str) -> list[dict[str, Any]]:
-        """Fetch all users for email."""
+    def fetch_expired_members(self, now: datetime) -> list[dict[str, Any]]:
+        """Return members whose expiration has passed."""
 
     @abstractmethod
-    def get_email_by_id(self, email_id: int) -> Optional[str]:
-        """Return email string by its ID."""
+    def mark_warning_sent(self, telegram_id: int) -> None:
+        """Mark that expiration warning was sent to member."""
 
-    @abstractmethod
-    def get_email_row(self, email: str) -> Optional[dict[str, Any]]:
-        """Return full email row."""
-
-    @abstractmethod
-    def add_user(self, email: str, telegram_id: int, username: str | None = None,
-                 full_name: str | None = None, authorized: bool = True) -> None:
-        """Insert or update user."""
-
-    @abstractmethod
-    def update_user_email(self, telegram_id: int, new_email: str) -> bool:
-        """Update user's email."""
-
+    # -- Admin management --------------------------------------------------
     @abstractmethod
     def is_admin(self, telegram_id: int) -> bool:
         """Check if Telegram ID belongs to admin."""
@@ -79,6 +76,8 @@ class DatabaseAdapter(ABC):
     def list_admins(self) -> list[dict[str, Any]]:
         """Return list of admins."""
 
+    # -- Testing helpers ---------------------------------------------------
     @abstractmethod
     def execute(self, sql: str, params: Iterable[Any] | None = None) -> None:
-        """Execute raw SQL (testing)."""
+        """Execute raw SQL (for testing)."""
+
