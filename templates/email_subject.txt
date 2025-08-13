@@ -1,0 +1,2 @@
+Новое обращение в поддержку: {{ topic }}{% if subcategory %} / {{ subcategory }}{% endif %}
+
