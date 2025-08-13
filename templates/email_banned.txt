@@ -1,4 +1,0 @@
-✅ Заблокированы email-адреса:
-{% for email in emails %}
-• {{ email }}
-{%- endfor %}

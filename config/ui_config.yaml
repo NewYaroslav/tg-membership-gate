@@ -1,70 +1,20 @@
-telegram_menu:
-  - command: start
-    description: "📨 Отправить обращение"
-  - command: help
-    description: "📄 Справка"
+start:
+  template: start_user.txt
+  action_button_text: "Получить доступ"
+  image: null
 
-telegram_start:
-  show_action_button_if_authorized: true
-  action_button_text: "📨 Отправить обращение"
+messages:
+  ask_id: ask_id.txt
+  waiting: id_waiting.txt
+  banned: id_banned.txt
+  not_found: id_not_found.txt
+  granted: access_granted.txt
+  denied: access_denied.txt
+  warning: expiry_warning.txt
+  expired: expired.txt
+  admin_request: admin_request.txt
 
-authorization:
-  confirm_change_buttons:
-    yes: "✅ Да"
-    no: "❌ Нет"
-
-  email_status_labels:
-    allowed: "✅ Разрешён"
-    banned: "🚫 Забанен"
-
-ticket_categories:
-  - label: "💻 Ошибки в работе оборудования"
-    subcategories:
-      - label: "Не включается, завис ПК"
-        template: hardware_issue_message.txt
-      - label: "Не работает телефон"
-        template: hardware_issue_message.txt
-      - label: "Печать/замена картриджа"
-        template: hardware_issue_message.txt
-  - label: "🛠 Ошибки в работе ПО"
-    subcategories:
-      - label: "Ошибка при работе, запуске"
-        template: software_issue_message.txt
-      - label: "Нет доступа к системе"
-        template: software_issue_message.txt
-  - label: "💾 Установка ПО"
-    template: software_install_message.txt
-  - label: "🔑 Запросы на доступ к ресурсам"
-    informational: true
-    template: access_request_info.txt
-  - label: "🌐 Сетевые проблемы"
-    subcategories:
-      - label: "Нет Интернета/доступа"
-        template: software_issue_message.txt
-      - label: "Не работает э/почта"
-        template: software_issue_message.txt
-  - label: "🛡 Кибербезопасность"
-    subcategories:
-      - label: "Подозрительные письма, звонки"
-        template: contact_info_message.txt
-      - label: "Вирусы"
-        template: contact_info_message.txt
-      - label: "Другое"
-        template: contact_info_message.txt
-  - label: "❗ Жалоба/благодарность"
-    subcategories:
-      - label: "Жалоба"
-        template: contact_info_message.txt
-      - label: "Благодарность"
-        template: contact_info_message.txt
-  - label: "📁 Другое"
-    template: contact_info_message.txt
-
-message_limits:
-  max_submission_length: 1500
-  max_requests: 3
-  interval_sec: 3600
-session_timeout:
-  seconds: 900
-  send_message: false
-  message_template: inactivity_timeout.txt
+admin_interface:
+  approve_template: "Разрешить на {period}"
+  decline_text: "Отклонить"
+  ban_text: "Забанить"

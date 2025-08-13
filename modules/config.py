@@ -1,16 +1,18 @@
 import yaml
 
 with open("config/ui_config.yaml", "r", encoding="utf-8") as f:
-    _ui_config = yaml.safe_load(f)
+    _ui = yaml.safe_load(f)
 
-with open("config/auth.yaml", "r", encoding="utf-8") as f:
-    _auth = yaml.safe_load(f)
+with open("config/membership.yaml", "r", encoding="utf-8") as f:
+    _mb = yaml.safe_load(f)
 
-telegram_menu = _ui_config.get("telegram_menu", [])
-telegram_start = _ui_config.get("telegram_start", {})
-authorization_ui = _ui_config.get("authorization", {})
-ticket_categories = _ui_config.get("ticket_categories", [])
-ticket_category_map = {cat.get("label"): cat for cat in ticket_categories}
-message_limits = _ui_config.get("message_limits", {})
-session_timeout = _ui_config.get("session_timeout", {})
-auth_config = _auth.get("auth", {})
+# User interface
+telegram_start = _ui.get("start", {})
+templates = _ui.get("messages", {})
+admin_ui = _ui.get("admin_interface", {})
+
+# Membership rules
+id_config = _mb.get("id", {})
+admin_buttons = _mb.get("admin", {})
+expiration = _mb.get("expiration", {})
+session_timeout = _mb.get("session_timeout", {})
