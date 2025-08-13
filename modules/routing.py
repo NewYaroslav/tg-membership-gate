@@ -10,11 +10,16 @@ from modules.flow import (
     handle_admin_decision,
 )
 from modules.log_utils import log_async_call
+from modules.logging_config import logger
 
 
 @log_async_call
 async def route_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    state = context.user_data.get("state", UserState.IDLE)
+    state = context.user_data.get("state")
+    if state is None:
+        context.user_data["state"] = UserState.IDLE
+        state = UserState.IDLE
+        logger.debug("Initialized state for user %s", update.effective_user.id)
     if state == UserState.WAITING_FOR_ID:
         await handle_id_submission(update, context)
     else:
