@@ -1,17 +1,108 @@
 from __future__ import annotations
 
-import re
+from datetime import datetime
+import csv
+import io
 
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
 from modules.auth_utils import is_admin
-from modules.config import id_config
 from modules.template_engine import render_template
-from modules.storage import db_set_ban
+from modules.storage import (
+    db_get_member_by_id_or_username,
+    db_set_banned,
+    db_set_confirmed,
+    db_iter_members,
+)
+from modules.access_control import (
+    ban_in_all_access_chats,
+    unban_in_all_access_chats,
+    kick_in_all_access_chats,
+    ACCESS_CHATS,
+)
+from modules.time_utils import humanize_period
 from modules.log_utils import log_async_call
 
-id_pattern = re.compile(id_config.get("pattern", ".+"))
+
+def _calc_status(member: dict) -> tuple[str, str, str]:
+    now = datetime.utcnow()
+    expires = member.get("expires_at")
+    expires_dt = None
+    if expires:
+        expires_dt = datetime.fromisoformat(expires) if isinstance(expires, str) else expires
+    remaining = ""
+    status = "none"
+    if member.get("is_banned"):
+        status = "banned"
+    elif member.get("is_confirmed"):
+        if not expires_dt:
+            status = "lifetime"
+        elif expires_dt > now:
+            status = "active"
+            remaining = str(int((expires_dt - now).total_seconds()))
+        else:
+            status = "expired"
+            remaining = "0"
+    return status, remaining, expires_dt.isoformat() if expires_dt else ""
+
+
+async def _ban_member(bot, member: dict):
+    user_id = member["telegram_id"]
+    summary = await ban_in_all_access_chats(bot, user_id)
+    db_set_banned(user_id, True)
+    db_set_confirmed(user_id, False, None)
+    member.update(is_banned=1, is_confirmed=0, expires_at=None)
+    return summary
+
+
+async def _unban_member(bot, member: dict):
+    user_id = member["telegram_id"]
+    summary = await unban_in_all_access_chats(bot, user_id)
+    db_set_banned(user_id, False)
+    member.update(is_banned=0)
+    return summary
+
+
+async def _kick_member(bot, member: dict):
+    user_id = member["telegram_id"]
+    summary = await kick_in_all_access_chats(bot, user_id)
+    db_set_confirmed(user_id, False, None)
+    member.update(is_confirmed=0, expires_at=None)
+    return summary
+
+
+async def _build_user_card(bot, member: dict):
+    status, remaining_sec, expires_at = _calc_status(member)
+    remaining_human = humanize_period(int(remaining_sec)) if remaining_sec else ""
+    in_channels = False
+    for chat_id in ACCESS_CHATS:
+        try:
+            m = await bot.get_chat_member(chat_id, member["telegram_id"])
+            if m.status not in ("left", "kicked"):
+                in_channels = True
+                break
+        except Exception:
+            continue
+    text = render_template(
+        "admin_user_card.txt",
+        id=member["telegram_id"],
+        username=member.get("username"),
+        is_confirmed=member.get("is_confirmed"),
+        is_banned=member.get("is_banned"),
+        status=status,
+        expires_at=expires_at,
+        remaining=remaining_human,
+        in_channels=in_channels,
+    )
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Ban", callback_data=f"ban:{member['telegram_id']}") ,
+            InlineKeyboardButton("Unban", callback_data=f"unban:{member['telegram_id']}") ,
+            InlineKeyboardButton("Kick", callback_data=f"kick:{member['telegram_id']}") ,
+        ]
+    ])
+    return text, keyboard
 
 
 @log_async_call
@@ -22,14 +113,22 @@ async def handle_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(render_template("id_required.txt"))
         return
-    membership_id = context.args[0].strip()
-    if not id_pattern.fullmatch(membership_id):
-        await update.message.reply_text(render_template("invalid_id.txt"))
+    key = context.args[0]
+    member = db_get_member_by_id_or_username(key)
+    if not member:
+        await update.message.reply_text(render_template("admin_user_not_found.txt"))
         return
-    db_set_ban(membership_id, True)
-    await update.message.reply_text(
-        render_template("admin_banned.txt", membership_id=membership_id)
+    summary = await _ban_member(context.bot, member)
+    total = len(summary["ok"]) + len(summary["errors"])
+    text = render_template(
+        "admin_ban_done.txt",
+        username=member.get("username"),
+        id=member["telegram_id"],
+        ok=len(summary["ok"]),
+        total=total,
+        errors=summary["errors"],
     )
+    await update.message.reply_text(text)
 
 
 @log_async_call
@@ -40,12 +139,128 @@ async def handle_unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(render_template("id_required.txt"))
         return
-    membership_id = context.args[0].strip()
-    if not id_pattern.fullmatch(membership_id):
-        await update.message.reply_text(render_template("invalid_id.txt"))
+    key = context.args[0]
+    member = db_get_member_by_id_or_username(key)
+    if not member:
+        await update.message.reply_text(render_template("admin_user_not_found.txt"))
         return
-    db_set_ban(membership_id, False)
-    await update.message.reply_text(
-        render_template("admin_unbanned.txt", membership_id=membership_id)
+    summary = await _unban_member(context.bot, member)
+    total = len(summary["ok"]) + len(summary["errors"])
+    text = render_template(
+        "admin_unban_done.txt",
+        username=member.get("username"),
+        id=member["telegram_id"],
+        ok=len(summary["ok"]),
+        total=total,
+        errors=summary["errors"],
     )
+    await update.message.reply_text(text)
 
+
+@log_async_call
+async def handle_kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text(render_template("not_authorized.txt"))
+        return
+    if not context.args:
+        await update.message.reply_text(render_template("id_required.txt"))
+        return
+    key = context.args[0]
+    member = db_get_member_by_id_or_username(key)
+    if not member:
+        await update.message.reply_text(render_template("admin_user_not_found.txt"))
+        return
+    summary = await _kick_member(context.bot, member)
+    total = len(summary["ok"]) + len(summary["errors"])
+    text = render_template(
+        "admin_kick_done.txt",
+        username=member.get("username"),
+        id=member["telegram_id"],
+        ok=len(summary["ok"]),
+        total=total,
+        errors=summary["errors"],
+    )
+    await update.message.reply_text(text)
+
+
+@log_async_call
+async def handle_export(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text(render_template("not_authorized.txt"))
+        return
+    scope = context.args[0] if context.args else "all"
+    members = db_iter_members(scope)
+    output = io.StringIO()
+    fieldnames = [
+        "telegram_id",
+        "username",
+        "is_confirmed",
+        "is_banned",
+        "expires_at",
+        "remaining_sec",
+        "status",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    count = 0
+    for m in members:
+        status, remaining, expires_at = _calc_status(m)
+        writer.writerow(
+            dict(
+                telegram_id=m.get("telegram_id"),
+                username=m.get("username"),
+                is_confirmed=m.get("is_confirmed"),
+                is_banned=m.get("is_banned"),
+                expires_at=expires_at,
+                remaining_sec=remaining,
+                status=status,
+            )
+        )
+        count += 1
+    bio = io.BytesIO(output.getvalue().encode())
+    bio.name = f"users_{scope}.csv"
+    caption = render_template("admin_export_ready.txt", n=count)
+    await update.message.reply_document(document=bio, filename=bio.name, caption=caption)
+
+
+@log_async_call
+async def handle_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text(render_template("not_authorized.txt"))
+        return
+    if not context.args:
+        await update.message.reply_text(render_template("id_required.txt"))
+        return
+    key = context.args[0]
+    member = db_get_member_by_id_or_username(key)
+    if not member:
+        await update.message.reply_text(render_template("admin_user_not_found.txt"))
+        return
+    text, keyboard = await _build_user_card(context.bot, member)
+    await update.message.reply_text(text, reply_markup=keyboard)
+
+
+@log_async_call
+async def handle_user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if not is_admin(query.from_user.id):
+        await query.answer(render_template("not_authorized.txt"), show_alert=True)
+        return
+    parts = query.data.split(":")
+    if len(parts) != 2:
+        await query.answer(render_template("unknown_action.txt"), show_alert=True)
+        return
+    action, uid = parts
+    member = db_get_member_by_id_or_username(int(uid))
+    if not member:
+        await query.answer(render_template("admin_user_not_found.txt"), show_alert=True)
+        return
+    if action == "ban":
+        await _ban_member(context.bot, member)
+    elif action == "unban":
+        await _unban_member(context.bot, member)
+    elif action == "kick":
+        await _kick_member(context.bot, member)
+    text, keyboard = await _build_user_card(context.bot, member)
+    await query.message.edit_text(text, reply_markup=keyboard)
+    await query.answer()

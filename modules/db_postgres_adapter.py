@@ -106,6 +106,62 @@ class PostgresAdapter(DatabaseAdapter):
             [is_banned, membership_id],
         )
 
+    # New helpers using telegram_id -----------------------------------
+    def get_member_by_id_or_username(self, key: int | str) -> Optional[dict[str, Any]]:
+        try:
+            key_int = int(key)
+            return self.get_member_by_telegram(key_int)
+        except (ValueError, TypeError):
+            username = str(key).lstrip("@")
+            row = self._run(
+                "SELECT * FROM members WHERE username=%s",
+                [username],
+                fetchone=True,
+            )
+            return dict(row) if row else None
+
+    def set_banned(self, member_id: int, banned: bool) -> None:
+        self._run(
+            "UPDATE members SET is_banned=%s WHERE telegram_id=%s",
+            [banned, member_id],
+        )
+
+    def set_confirmed(
+        self, member_id: int, confirmed: bool, expires_at: datetime | None = None
+    ) -> None:
+        self._run(
+            "UPDATE members SET is_confirmed=%s, expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL WHERE telegram_id=%s",
+            [confirmed, expires_at, member_id],
+        )
+
+    def iter_members(self, scope: str) -> Iterable[dict[str, Any]]:
+        now = datetime.utcnow()
+        if scope == "active":
+            rows = self._run(
+                "SELECT * FROM members WHERE is_banned=FALSE AND is_confirmed=TRUE",
+                fetchall=True,
+            )
+            result = []
+            for r in rows:
+                exp = r["expires_at"]
+                if not exp or exp > now:
+                    result.append(dict(r))
+            return result
+        if scope == "expired":
+            rows = self._run(
+                "SELECT * FROM members WHERE is_confirmed=TRUE AND expires_at IS NOT NULL",
+                fetchall=True,
+            )
+            return [dict(r) for r in rows if r["expires_at"] <= now]
+        if scope == "banned":
+            rows = self._run(
+                "SELECT * FROM members WHERE is_banned=TRUE",
+                fetchall=True,
+            )
+            return [dict(r) for r in rows]
+        rows = self._run("SELECT * FROM members", fetchall=True)
+        return [dict(r) for r in rows]
+
     def update_expiration(self, membership_id: str, expires_at: datetime | None) -> None:
         self._run(
             "UPDATE members SET expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL WHERE membership_id=%s",
