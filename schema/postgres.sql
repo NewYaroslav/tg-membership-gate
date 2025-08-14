@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS members (
     is_confirmed BOOLEAN DEFAULT FALSE,
     is_banned BOOLEAN DEFAULT FALSE,
     expires_at TIMESTAMP,
-    warning_sent BOOLEAN DEFAULT FALSE,
+    warn_sent_at TIMESTAMP,
+    grace_notified_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -33,4 +34,10 @@ CREATE TABLE IF NOT EXISTS admins (
 );
 
 CREATE INDEX IF NOT EXISTS idx_admins_telegram_id ON admins(telegram_id);
+
+CREATE TABLE IF NOT EXISTS join_invite_links (
+    chat_id BIGINT PRIMARY KEY,
+    invite_link TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 

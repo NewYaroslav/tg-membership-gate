@@ -15,3 +15,17 @@ expiration:
 session_timeout:
   seconds: 900
   send_message: false
+
+renewal:
+  warn_before_sec: 86400
+  grace_after_expiry_sec: 86400
+  user_plans:
+    - id: trial_3d
+      label: "Подписаться на пробный период"
+      duration_sec: 259200
+    - id: month_30
+      label: "Купить подписку на 30 дней"
+      duration_sec: 2592000
+    - id: lifetime
+      label: "Купить бессрочную подписку"
+      duration_sec: 0

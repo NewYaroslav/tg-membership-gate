@@ -8,6 +8,7 @@ from modules.flow import (
     handle_idle_state,
     handle_unknown_message,
     handle_admin_decision,
+    handle_renewal_selection,
 )
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
@@ -34,6 +35,8 @@ async def handle_inline_button(update: Update, context: ContextTypes.DEFAULT_TYP
     data = query.data or ""
     if data == "request_access" and state == UserState.WAITING_FOR_REQUEST_BUTTON:
         await handle_request_button(update, context)
+    elif data.startswith("renew:"):
+        await handle_renewal_selection(update, context)
     elif data.startswith("approve:") or data.startswith("decline:") or data.startswith("ban:"):
         await handle_admin_decision(update, context)
     else:

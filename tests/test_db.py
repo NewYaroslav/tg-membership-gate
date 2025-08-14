@@ -21,3 +21,6 @@ def test_member_flow(tmp_path):
     db.set_ban("123", True)
     member = db.get_member_by_membership_id("123")
     assert member["is_banned"] == 1
+    db.upsert_join_link(1, "https://t.me/joinchat/test")
+    link = db.get_join_link(1)
+    assert link["invite_link"] == "https://t.me/joinchat/test"

@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
-from modules.config import telegram_start, templates, id_config, admin_buttons, admin_ui
+from modules.config import telegram_start, templates, id_config, admin_buttons, admin_ui, renewal
 from modules.storage import (
     db_get_member_by_telegram,
     db_get_member_by_id,
@@ -22,9 +22,10 @@ from modules.template_engine import render_template
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
 from modules.time_utils import humanize_period
+from modules.join_links import ensure_join_request_link
 
 load_dotenv()
-ACCESS_LINKS = [link.strip() for link in os.getenv("ACCESS_LINKS", "").split(",") if link.strip()]
+ACCESS_CHATS = [int(cid.strip()) for cid in os.getenv("ACCESS_CHATS", "").split(",") if cid.strip()]
 
 id_pattern = re.compile(id_config.get("pattern", ".+"))
 
@@ -75,9 +76,17 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     if member and member.get("is_confirmed"):
-        links = ACCESS_LINKS
-        text = render_template(templates.get("granted", "access_granted.txt"), links=links)
-        await update.message.reply_text(text)
+        links: List[str] = []
+        for chat_id in ACCESS_CHATS:
+            try:
+                links.append(await ensure_join_request_link(context.bot, chat_id))
+            except Exception as e:
+                logger.warning("link fail %s: %s", chat_id, e)
+        if links:
+            text = render_template(templates.get("granted", "access_granted.txt"), links=links)
+        else:
+            text = render_template(templates.get("links_unavailable", "links_unavailable.txt"))
+        await update.message.reply_text(text, disable_web_page_preview=True)
         context.user_data["state"] = UserState.IDLE
         return
 
@@ -114,6 +123,42 @@ async def handle_unknown_message(update: Update, context: ContextTypes.DEFAULT_T
 
 # Admin decision handlers ---------------------------------------------
 
+
+@log_async_call
+async def handle_renewal_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    parts = query.data.split(":")
+    if len(parts) != 3:
+        await query.answer(render_template("unknown_action.txt"))
+        return
+    _, membership_id, plan_id = parts
+    member = db_get_member_by_id(membership_id)
+    if not member or member.get("telegram_id") != update.effective_user.id:
+        await query.answer(render_template("not_authorized.txt"), show_alert=True)
+        return
+    plan = next((p for p in renewal.get("user_plans", []) if p.get("id") == plan_id), None)
+    if not plan:
+        await query.answer(render_template("unknown_action.txt"), show_alert=True)
+        return
+    seconds = int(plan.get("duration_sec", 0))
+    period = "бессрочно" if seconds == 0 else humanize_period(seconds)
+    admin_text = render_template(
+        templates.get("renewal_requested_admin", "renewal_requested_admin.txt"),
+        username=member.get("username"),
+        membership_id=membership_id,
+        plan_label=plan.get("label"),
+        plan_period=period,
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(text=f"Одобрить на {period}", callback_data=f"approve:{membership_id}:{seconds}")],
+        [InlineKeyboardButton(text=admin_ui.get("decline_text", "Отклонить"), callback_data=f"decline:{membership_id}")],
+    ])
+    try:
+        await context.bot.send_message(chat_id=ROOT_ADMIN_ID, text=admin_text, reply_markup=keyboard)
+    except Exception as e:
+        logger.exception("Failed to notify admin about renewal: %s", e)
+    await query.message.reply_text(render_template(templates.get("waiting", "id_waiting.txt")))
+
 @log_async_call
 async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -135,12 +180,30 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
     user_id = member.get("telegram_id")
     if action == "approve":
         seconds = int(data[2])
-        expires_at = datetime.utcnow() + timedelta(seconds=seconds) if seconds > 0 else None
+        now = datetime.utcnow()
+        current = member.get("expires_at")
+        if current:
+            if isinstance(current, str):
+                current_dt = datetime.fromisoformat(current)
+            else:
+                current_dt = current
+            base = max(now, current_dt)
+        else:
+            base = now
+        expires_at = None if seconds == 0 else base + timedelta(seconds=seconds)
         db_set_confirmation(membership_id, True, expires_at)
         if user_id:
-            links = ACCESS_LINKS
-            text = render_template(templates.get("granted", "access_granted.txt"), links=links)
-            await context.bot.send_message(chat_id=user_id, text=text)
+            links: List[str] = []
+            for chat_id in ACCESS_CHATS:
+                try:
+                    links.append(await ensure_join_request_link(context.bot, chat_id))
+                except Exception as e:
+                    logger.warning("link fail %s: %s", chat_id, e)
+            if links:
+                text = render_template(templates.get("granted", "access_granted.txt"), links=links)
+            else:
+                text = render_template(templates.get("links_unavailable", "links_unavailable.txt"))
+            await context.bot.send_message(chat_id=user_id, text=text, disable_web_page_preview=True)
         await query.edit_message_text(render_template("admin_approved.txt", membership_id=membership_id))
     elif action == "decline":
         db_set_confirmation(membership_id, False, None)

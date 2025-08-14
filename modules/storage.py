@@ -63,6 +63,26 @@ def db_mark_warning_sent(telegram_id: int) -> None:
 
 
 @log_sync_call
+def db_get_join_link(chat_id: int):
+    return get_db().get_join_link(chat_id)
+
+
+@log_sync_call
+def db_upsert_join_link(chat_id: int, invite_link: str) -> None:
+    get_db().upsert_join_link(chat_id, invite_link)
+
+
+@log_sync_call
+def db_fetch_recently_expired(now: datetime, grace_sec: int):
+    return get_db().fetch_recently_expired(now, grace_sec)
+
+
+@log_sync_call
+def db_mark_grace_notified(telegram_id: int) -> None:
+    get_db().mark_grace_notified(telegram_id)
+
+
+@log_sync_call
 def db_is_admin(telegram_id: int) -> bool:
     return get_db().is_admin(telegram_id)
 

@@ -59,6 +59,24 @@ class DatabaseAdapter(ABC):
     def mark_warning_sent(self, telegram_id: int) -> None:
         """Mark that expiration warning was sent to member."""
 
+    # -- Join request links ----------------------------------------------
+    @abstractmethod
+    def get_join_link(self, chat_id: int) -> Optional[dict[str, Any]]:
+        """Retrieve stored join request invite link for chat."""
+
+    @abstractmethod
+    def upsert_join_link(self, chat_id: int, invite_link: str) -> None:
+        """Insert or update join request invite link."""
+
+    # -- Renewal helpers -------------------------------------------------
+    @abstractmethod
+    def fetch_recently_expired(self, now: datetime, grace_sec: int) -> list[dict[str, Any]]:
+        """Members whose expiration passed but still within grace period."""
+
+    @abstractmethod
+    def mark_grace_notified(self, telegram_id: int) -> None:
+        """Mark that user has been notified about grace period."""
+
     # -- Admin management --------------------------------------------------
     @abstractmethod
     def is_admin(self, telegram_id: int) -> bool:
