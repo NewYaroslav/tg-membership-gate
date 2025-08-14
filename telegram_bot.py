@@ -2,10 +2,19 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from telegram import BotCommand
-from telegram.ext import Application, ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import (
+    Application,
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    ChatJoinRequestHandler,
+    filters,
+)
 from rich.console import Console
 
 from modules.routing import route_message, handle_inline_button
+from modules.join_approver import on_join_request
 from modules.common import handle_start_command, handle_help_command
 from modules.admin_commands import handle_ban, handle_unban
 from modules.storage import db_init
@@ -59,6 +68,7 @@ def run_telegram_bot():
     app.add_handler(CommandHandler("unban", handle_unban))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, route_message))
     app.add_handler(CallbackQueryHandler(handle_inline_button))
+    app.add_handler(ChatJoinRequestHandler(on_join_request))
 
     console.print("[bold green]Telegram bot is running[/bold green]")
     logger.info("Telegram bot is now polling for messages")

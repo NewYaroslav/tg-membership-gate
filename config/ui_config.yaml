@@ -13,6 +13,10 @@ messages:
   warning: expiry_warning.txt
   expired: expired.txt
   admin_request: admin_request.txt
+  renewal_warning: renewal_warning.txt
+  grace_warning: grace_warning.txt
+  renewal_requested_admin: renewal_requested_admin.txt
+  links_unavailable: links_unavailable.txt
 
 admin_interface:
   approve_template: "Разрешить на {period}"

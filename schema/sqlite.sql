@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS members (
     is_confirmed INTEGER DEFAULT 0,
     is_banned INTEGER DEFAULT 0,
     expires_at TEXT,
-    warning_sent INTEGER DEFAULT 0,
+    warn_sent_at TEXT,
+    grace_notified_at TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -28,4 +29,10 @@ CREATE TABLE IF NOT EXISTS admins (
 );
 
 CREATE INDEX IF NOT EXISTS idx_admins_telegram_id ON admins(telegram_id);
+
+CREATE TABLE IF NOT EXISTS join_invite_links (
+    chat_id INTEGER PRIMARY KEY,
+    invite_link TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 

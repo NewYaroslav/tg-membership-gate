@@ -96,7 +96,7 @@ class PostgresAdapter(DatabaseAdapter):
 
     def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
         self._run(
-            "UPDATE members SET is_confirmed=%s, expires_at=%s, warning_sent=FALSE WHERE membership_id=%s",
+            "UPDATE members SET is_confirmed=%s, expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL WHERE membership_id=%s",
             [is_confirmed, expires_at, membership_id],
         )
 
@@ -108,13 +108,13 @@ class PostgresAdapter(DatabaseAdapter):
 
     def update_expiration(self, membership_id: str, expires_at: datetime | None) -> None:
         self._run(
-            "UPDATE members SET expires_at=%s, warning_sent=FALSE WHERE membership_id=%s",
+            "UPDATE members SET expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL WHERE membership_id=%s",
             [expires_at, membership_id],
         )
 
     def fetch_members_for_warning(self, now: datetime, threshold: int) -> list[dict[str, Any]]:
         rows = self._run(
-            "SELECT * FROM members WHERE is_confirmed=TRUE AND expires_at IS NOT NULL AND warning_sent=FALSE",
+            "SELECT * FROM members WHERE is_confirmed=TRUE AND expires_at IS NOT NULL AND warn_sent_at IS NULL",
             fetchall=True,
         )
         result: list[dict[str, Any]] = []
@@ -135,7 +135,42 @@ class PostgresAdapter(DatabaseAdapter):
         return result
 
     def mark_warning_sent(self, telegram_id: int) -> None:
-        self._run("UPDATE members SET warning_sent=TRUE WHERE telegram_id=%s", [telegram_id])
+        self._run("UPDATE members SET warn_sent_at=NOW() WHERE telegram_id=%s", [telegram_id])
+
+    # Join links -------------------------------------------------------
+    def get_join_link(self, chat_id: int) -> Optional[dict[str, Any]]:
+        row = self._run(
+            "SELECT * FROM join_invite_links WHERE chat_id=%s",
+            [chat_id],
+            fetchone=True,
+        )
+        return dict(row) if row else None
+
+    def upsert_join_link(self, chat_id: int, invite_link: str) -> None:
+        self._run(
+            """
+            INSERT INTO join_invite_links (chat_id, invite_link)
+            VALUES (%s,%s)
+            ON CONFLICT(chat_id) DO UPDATE SET invite_link=EXCLUDED.invite_link
+            """,
+            [chat_id, invite_link],
+        )
+
+    # Renewal helpers --------------------------------------------------
+    def fetch_recently_expired(self, now: datetime, grace_sec: int) -> list[dict[str, Any]]:
+        rows = self._run(
+            "SELECT * FROM members WHERE is_confirmed=TRUE AND expires_at IS NOT NULL AND grace_notified_at IS NULL",
+            fetchall=True,
+        )
+        result: list[dict[str, Any]] = []
+        for r in rows:
+            diff = (now - r["expires_at"]).total_seconds()
+            if 0 <= diff <= grace_sec:
+                result.append(dict(r))
+        return result
+
+    def mark_grace_notified(self, telegram_id: int) -> None:
+        self._run("UPDATE members SET grace_notified_at=NOW() WHERE telegram_id=%s", [telegram_id])
 
     # Admin operations --------------------------------------------------
     def is_admin(self, telegram_id: int) -> bool:

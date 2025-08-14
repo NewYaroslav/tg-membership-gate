@@ -49,7 +49,7 @@ sequenceDiagram
 - **Database schema** (`schema/*.sql`):
   | Table | Key fields |
   |-------|------------|
-  | `members` | `membership_id`, `telegram_id`, `is_confirmed`, `is_banned`, `expires_at`, `warning_sent` |
+  | `members` | `membership_id`, `telegram_id`, `is_confirmed`, `is_banned`, `expires_at`, `warn_sent_at`, `grace_notified_at` |
   | `admins`  | `telegram_id`, `is_top_level` |
 - **Config files**: `config/ui_config.yaml` (templates & admin UI), `config/membership.yaml` (ID regex, admin buttons, expiration, session timeout). Any new keys MUST be documented and parsed in `modules/config.py`.
 - **Callback data contract**: Admin buttons emit `approve:{id}:{seconds}`, `decline:{id}` or `ban:{id}`.
