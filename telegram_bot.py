@@ -16,6 +16,7 @@ from rich.console import Console
 from modules.routing import route_message, handle_inline_button
 from modules.join_approver import on_join_request
 from modules.common import handle_start_command, handle_help_command
+from modules.i18n import cmd_language, on_lang_pick
 from modules.admin_commands import (
     handle_ban,
     handle_unban,
@@ -45,6 +46,7 @@ async def setup_bot_commands(app: Application):
     await app.bot.set_my_commands([
         BotCommand("start", "Запустить"),
         BotCommand("help", "Справка"),
+        BotCommand("language", "Язык"),
     ])
 
 
@@ -71,6 +73,7 @@ def run_telegram_bot():
 
     app.add_handler(CommandHandler("start", handle_start_command))
     app.add_handler(CommandHandler("help", handle_help_command))
+    app.add_handler(CommandHandler("language", cmd_language))
     app.add_handler(CommandHandler("ban", handle_ban))
     app.add_handler(CommandHandler("unban", handle_unban))
     app.add_handler(CommandHandler("kick", handle_kick))
@@ -79,6 +82,7 @@ def run_telegram_bot():
     app.add_handler(CommandHandler("user", handle_user))
     app.add_handler(CallbackQueryHandler(handle_user_action, pattern=r"^(ban|unban|kick):\d+$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, route_message))
+    app.add_handler(CallbackQueryHandler(on_lang_pick, pattern=r"^lang:"))
     app.add_handler(CallbackQueryHandler(handle_inline_button))
     app.add_handler(ChatJoinRequestHandler(on_join_request))
 
@@ -102,5 +106,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         console.print("\n[yellow][!] Stopped by user (Ctrl+C).[/yellow]")
     finally:
-        # 
         pass

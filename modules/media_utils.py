@@ -9,7 +9,9 @@ from telegram.error import TelegramError
 
 from modules.storage import db_get_media_cache, db_upsert_media_cache
 from modules.logging_config import logger
-from modules.i18n import DEFAULT_LANG
+from modules.config import i18n
+
+DEFAULT_LANG = i18n.get("default_lang", "en")
 
 
 def pick_localized_media(cfg_section: dict | None, lang: str, default_lang: str = DEFAULT_LANG) -> dict | None:
