@@ -13,11 +13,14 @@ from modules.config import (
     renewal,
     i18n,
     i18n_buttons,
+    language_prompt,
+    post_join,
 )
 
 
 def test_config_loaded():
     assert "template" in telegram_start
+    assert "enabled_image" in telegram_start
     assert "ask_id" in templates
     assert isinstance(admin_buttons.get("approve_durations"), list)
     assert "pattern" in id_config
@@ -26,3 +29,6 @@ def test_config_loaded():
     assert "user_plans" in renewal
     assert "default_lang" in i18n
     assert "en" in i18n_buttons
+    assert "template" in language_prompt
+    assert "template" in post_join
+    assert "enabled_image" in post_join

@@ -13,6 +13,8 @@ with open("config/i18n.yaml", "r", encoding="utf-8") as f:
 telegram_start = _ui.get("start", {})
 templates = _ui.get("messages", {})
 admin_ui = _ui.get("admin_interface", {})
+language_prompt = _ui.get("language_prompt", {})
+post_join = _ui.get("post_join", {})
 
 # Membership rules
 id_config = _mb.get("id", {})

@@ -1,7 +1,10 @@
 start:
   template: start_user.txt
   action_button_text: "Получить доступ"
-  image: null
+  enabled_image: true
+  image:
+    en: { path: assets/en/start.jpg }
+    ru: { path: assets/ru/start.jpg }
 
 messages:
   ask_id: ask_id.txt
@@ -22,3 +25,18 @@ admin_interface:
   approve_template: "Разрешить на {period}"
   decline_text: "Отклонить"
   ban_text: "Забанить"
+
+language_prompt:
+  enabled_image: false
+  template: start_language_prompt.txt
+  image:
+    en: { path: assets/en/start.jpg }
+    ru: { path: assets/ru/start.jpg }
+
+post_join:
+  enabled: true
+  enabled_image: true
+  template: post_join.txt
+  image:
+    en: { path: assets/en/final.jpg }
+    ru: { path: assets/ru/final.jpg }

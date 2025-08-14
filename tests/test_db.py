@@ -28,3 +28,6 @@ def test_member_flow(tmp_path):
     assert link["invite_link"] == "https://t.me/joinchat/test"
     db.set_user_locale(111, "en")
     assert db.get_user_locale(111) == "en"
+    db.upsert_media_cache("start.image", "en", "hash", "file")
+    cache = db.get_media_cache("start.image", "en")
+    assert cache["file_id"] == "file"

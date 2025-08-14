@@ -131,3 +131,13 @@ def db_get_user_locale(telegram_id: int) -> str | None:
 def db_set_user_locale(telegram_id: int, lang: str) -> None:
     get_db().set_user_locale(telegram_id, lang)
 
+
+@log_sync_call
+def db_get_media_cache(asset_key: str, lang: str) -> dict | None:
+    return get_db().get_media_cache(asset_key, lang)
+
+
+@log_sync_call
+def db_upsert_media_cache(asset_key: str, lang: str, file_hash: str, file_id: str) -> None:
+    get_db().upsert_media_cache(asset_key, lang, file_hash, file_id)
+

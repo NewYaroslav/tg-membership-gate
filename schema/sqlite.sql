@@ -47,3 +47,12 @@ CREATE TABLE IF NOT EXISTS join_invite_links (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS media_cache (
+    asset_key TEXT NOT NULL,
+    lang TEXT NOT NULL,
+    file_hash TEXT NOT NULL,
+    file_id TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (asset_key, lang)
+);
+

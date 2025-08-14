@@ -124,3 +124,12 @@ class DatabaseAdapter(ABC):
     def set_user_locale(self, telegram_id: int, lang: str) -> None:
         """Persist user locale."""
 
+    # -- Media cache ------------------------------------------------------
+    @abstractmethod
+    def get_media_cache(self, asset_key: str, lang: str) -> Optional[dict[str, Any]]:
+        """Return cached file_id and hash for asset."""
+
+    @abstractmethod
+    def upsert_media_cache(self, asset_key: str, lang: str, file_hash: str, file_id: str) -> None:
+        """Update or insert cache entry for asset."""
+

@@ -7,18 +7,21 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
-from modules.config import telegram_start, templates, id_config, admin_buttons, admin_ui, renewal
+from modules.config import telegram_start, templates, id_config, admin_buttons, admin_ui, renewal, post_join
 from modules.storage import (
     db_get_member_by_telegram,
     db_get_member_by_id,
     db_upsert_member,
     db_set_confirmation,
     db_set_ban,
+    db_get_user_locale,
     ROOT_ADMIN_ID,
 )
 from modules.auth_utils import is_admin
 from modules.states import UserState
 from modules.template_engine import render_template
+from modules.media_utils import send_localized_image_with_text
+from modules.i18n import normalize_lang
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
 from modules.time_utils import humanize_period
@@ -204,6 +207,24 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
             else:
                 text = render_template(templates.get("links_unavailable", "links_unavailable.txt"))
             await context.bot.send_message(chat_id=user_id, text=text, disable_web_page_preview=True)
+            if post_join.get("enabled"):
+                user_lang = normalize_lang(db_get_user_locale(user_id))
+                post_text = render_template(post_join.get("template", "post_join.txt"), lang=user_lang)
+                if post_join.get("enabled_image", True):
+                    await send_localized_image_with_text(
+                        bot=context.bot,
+                        chat_id=user_id,
+                        asset_key="post_join.image",
+                        cfg_section=post_join,
+                        lang=user_lang,
+                        text=post_text,
+                    )
+                else:
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text=post_text,
+                        parse_mode="HTML",
+                    )
         await query.edit_message_text(render_template("admin_approved.txt", membership_id=membership_id))
     elif action == "decline":
         db_set_confirmation(membership_id, False, None)

@@ -87,6 +87,18 @@ sequenceDiagram
 2. Update `db_factory.get_db` to select it via `DB_BACKEND`.
 3. Provide schema under `schema/` and tests.
 
+### Replace localized images
+1. Place new files under `assets/<lang>/` (e.g. `assets/en/start.jpg`).
+2. On next send the bot computes `sha256` and refreshes cached `file_id` in `media_cache`.
+
+### Toggle language prompt image
+Set `language_prompt.enabled_image` in `config/ui_config.yaml` to enable/disable
+illustrations for the language selection message.
+
+### Toggle start/post-join images
+Use `start.enabled_image` and `post_join.enabled_image` to control whether
+pictures are sent for the welcome and post-join messages.
+
 ## Anti‑Patterns & Pitfalls
 - Forgetting to update `context.user_data["state"]` leading to improper routing.
 - Hard‑coding text instead of using templates.
