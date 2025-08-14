@@ -1,28 +1,29 @@
+from pathlib import Path
 import logging
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from modules.config import i18n
+from modules.i18n import plural_days
 
 logger = logging.getLogger("tg_support_bot.template")
 
+DEFAULT_LANG = i18n.get("default_lang", "en")
+TEMPLATES_DIR = Path("templates")
+
 env = Environment(
-    loader=FileSystemLoader("templates"),
-    autoescape=select_autoescape(["txt", "html"])
+    loader=FileSystemLoader(str(TEMPLATES_DIR)),
+    autoescape=select_autoescape(["txt", "html"]),
 )
 
-def render_template(template_name: str, fallback: str = "⚠ Template error", **kwargs) -> str:
-    """
-    Renders a template safely.
+env.filters["plural_days"] = lambda n, lang: plural_days(n, lang)
 
-    @param template_name: Template filename from /templates
-    @param fallback: Text to return on error
-    @param kwargs: Template context
-    @return Rendered string or fallback
-    """
-    try:
-        template = env.get_template(template_name)
-        return template.render(**kwargs)
-    except TemplateNotFound:
-        logger.error(f"Template not found: {template_name}")
-        return f"[ERROR] Template '{template_name}' not found"
-    except Exception as e:
-        logger.error(f"Template rendering failed: {e}")
-        return fallback
+
+def render_template(name: str, *, lang: str | None = None, **ctx) -> str:
+    lang = (lang or DEFAULT_LANG).split("-")[0]
+    candidates = [f"{lang}/{name}", f"{DEFAULT_LANG}/{name}", name]
+    for rel in candidates:
+        p = TEMPLATES_DIR / rel
+        if p.exists():
+            template = env.get_template(rel)
+            return template.render(**ctx)
+    raise FileNotFoundError(name)

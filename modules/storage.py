@@ -121,3 +121,13 @@ def db_remove_admin(telegram_id: int) -> None:
 def db_list_admins() -> list[dict]:
     return get_db().list_admins()
 
+
+@log_sync_call
+def db_get_user_locale(telegram_id: int) -> str | None:
+    return get_db().get_user_locale(telegram_id)
+
+
+@log_sync_call
+def db_set_user_locale(telegram_id: int, lang: str) -> None:
+    get_db().set_user_locale(telegram_id, lang)
+

@@ -115,3 +115,12 @@ class DatabaseAdapter(ABC):
     def execute(self, sql: str, params: Iterable[Any] | None = None) -> None:
         """Execute raw SQL (for testing)."""
 
+    # -- User preferences ---------------------------------------------------
+    @abstractmethod
+    def get_user_locale(self, telegram_id: int) -> Optional[str]:
+        """Return stored locale for user."""
+
+    @abstractmethod
+    def set_user_locale(self, telegram_id: int, lang: str) -> None:
+        """Persist user locale."""
+
