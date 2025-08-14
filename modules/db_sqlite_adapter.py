@@ -113,6 +113,63 @@ class SQLiteAdapter(DatabaseAdapter):
             [int(is_banned), membership_id],
         )
 
+    # New helpers using telegram_id -----------------------------------
+    def get_member_by_id_or_username(self, key: int | str) -> Optional[dict[str, Any]]:
+        try:
+            key_int = int(key)
+            return self.get_member_by_telegram(key_int)
+        except (ValueError, TypeError):
+            username = str(key).lstrip("@")
+            row = self._run(
+                "SELECT * FROM members WHERE username=?",
+                [username],
+                fetchone=True,
+            )
+            return dict(row) if row else None
+
+    def set_banned(self, member_id: int, banned: bool) -> None:
+        self._run(
+            "UPDATE members SET is_banned=? WHERE telegram_id=?",
+            [int(banned), member_id],
+        )
+
+    def set_confirmed(
+        self, member_id: int, confirmed: bool, expires_at: datetime | None = None
+    ) -> None:
+        expires = expires_at.isoformat() if expires_at else None
+        self._run(
+            "UPDATE members SET is_confirmed=?, expires_at=?, warn_sent_at=NULL, grace_notified_at=NULL WHERE telegram_id=?",
+            [int(confirmed), expires, member_id],
+        )
+
+    def iter_members(self, scope: str) -> Iterable[dict[str, Any]]:
+        now = datetime.utcnow()
+        if scope == "active":
+            rows = self._run(
+                "SELECT * FROM members WHERE is_banned=0 AND is_confirmed=1",
+                fetchall=True,
+            )
+            result = []
+            for r in rows:
+                exp = r["expires_at"]
+                if not exp or datetime.fromisoformat(exp) > now:
+                    result.append(dict(r))
+            return result
+        if scope == "expired":
+            rows = self._run(
+                "SELECT * FROM members WHERE is_confirmed=1 AND expires_at IS NOT NULL",
+                fetchall=True,
+            )
+            return [dict(r) for r in rows if datetime.fromisoformat(r["expires_at"]) <= now]
+        if scope == "banned":
+            rows = self._run(
+                "SELECT * FROM members WHERE is_banned=1",
+                fetchall=True,
+            )
+            return [dict(r) for r in rows]
+        rows = self._run("SELECT * FROM members", fetchall=True)
+        return [dict(r) for r in rows]
+
     def update_expiration(self, membership_id: str, expires_at: datetime | None) -> None:
         expires = expires_at.isoformat() if expires_at else None
         self._run(

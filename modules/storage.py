@@ -43,6 +43,26 @@ def db_set_ban(membership_id: str, is_banned: bool) -> None:
 
 
 @log_sync_call
+def db_get_member_by_id_or_username(key: int | str):
+    return get_db().get_member_by_id_or_username(key)
+
+
+@log_sync_call
+def db_set_banned(member_id: int, banned: bool) -> None:
+    get_db().set_banned(member_id, banned)
+
+
+@log_sync_call
+def db_set_confirmed(member_id: int, confirmed: bool, expires_at: datetime | None) -> None:
+    get_db().set_confirmed(member_id, confirmed, expires_at)
+
+
+@log_sync_call
+def db_iter_members(scope: str):
+    return list(get_db().iter_members(scope))
+
+
+@log_sync_call
 def db_update_expiration(membership_id: str, expires_at: datetime | None) -> None:
     get_db().update_expiration(membership_id, expires_at)
 

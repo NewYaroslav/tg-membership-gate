@@ -1,0 +1,8 @@
+ID: {{ id }}
+Username: {{ username }}
+Подтверждён: {{ is_confirmed }}
+Забанен: {{ is_banned }}
+Статус: {{ status }}
+Истекает: {{ expires_at }}
+Осталось: {{ remaining }}
+В каналах: {{ in_channels }}

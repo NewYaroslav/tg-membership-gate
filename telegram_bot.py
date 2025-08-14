@@ -16,7 +16,14 @@ from rich.console import Console
 from modules.routing import route_message, handle_inline_button
 from modules.join_approver import on_join_request
 from modules.common import handle_start_command, handle_help_command
-from modules.admin_commands import handle_ban, handle_unban
+from modules.admin_commands import (
+    handle_ban,
+    handle_unban,
+    handle_kick,
+    handle_export,
+    handle_user,
+    handle_user_action,
+)
 from modules.storage import db_init
 from modules.log_utils import log_async_call, log_sync_call
 from modules.logging_config import logger
@@ -66,6 +73,11 @@ def run_telegram_bot():
     app.add_handler(CommandHandler("help", handle_help_command))
     app.add_handler(CommandHandler("ban", handle_ban))
     app.add_handler(CommandHandler("unban", handle_unban))
+    app.add_handler(CommandHandler("kick", handle_kick))
+    app.add_handler(CommandHandler("remove", handle_kick))
+    app.add_handler(CommandHandler("export_users", handle_export))
+    app.add_handler(CommandHandler("user", handle_user))
+    app.add_handler(CallbackQueryHandler(handle_user_action, pattern=r"^(ban|unban|kick):\d+$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, route_message))
     app.add_handler(CallbackQueryHandler(handle_inline_button))
     app.add_handler(ChatJoinRequestHandler(on_join_request))

@@ -48,6 +48,22 @@ class DatabaseAdapter(ABC):
         """Update member expiration timestamp."""
 
     @abstractmethod
+    def get_member_by_id_or_username(self, key: int | str) -> Optional[dict[str, Any]]:
+        """Return member by Telegram ID or username."""
+
+    @abstractmethod
+    def set_banned(self, member_id: int, banned: bool) -> None:
+        """Set ban flag by Telegram ID."""
+
+    @abstractmethod
+    def set_confirmed(self, member_id: int, confirmed: bool, expires_at: datetime | None = None) -> None:
+        """Set confirmation by Telegram ID."""
+
+    @abstractmethod
+    def iter_members(self, scope: str) -> Iterable[dict[str, Any]]:
+        """Iterate members for export with optional scope filter."""
+
+    @abstractmethod
     def fetch_members_for_warning(self, now: datetime, threshold: int) -> list[dict[str, Any]]:
         """Return members whose expiration is within threshold seconds and warning not sent."""
 
