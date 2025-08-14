@@ -360,3 +360,25 @@ class PostgresAdapter(DatabaseAdapter):
             [telegram_id, lang],
         )
 
+    # Media cache ------------------------------------------------------
+    def get_media_cache(self, asset_key: str, lang: str) -> Optional[dict[str, Any]]:
+        row = self._run(
+            "SELECT file_hash, file_id FROM media_cache WHERE asset_key=%s AND lang=%s",
+            [asset_key, lang],
+            fetchone=True,
+        )
+        return dict(row) if row else None
+
+    def upsert_media_cache(self, asset_key: str, lang: str, file_hash: str, file_id: str) -> None:
+        self._run(
+            """
+            INSERT INTO media_cache (asset_key, lang, file_hash, file_id)
+            VALUES (%s,%s,%s,%s)
+            ON CONFLICT (asset_key, lang) DO UPDATE SET
+                file_hash=EXCLUDED.file_hash,
+                file_id=EXCLUDED.file_id,
+                updated_at=CURRENT_TIMESTAMP
+            """,
+            [asset_key, lang, file_hash, file_id],
+        )
+

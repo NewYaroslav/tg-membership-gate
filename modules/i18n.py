@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-from modules.config import i18n, i18n_buttons
+from modules.config import i18n, i18n_buttons, language_prompt
 from modules.storage import db_set_user_locale
 from modules.log_utils import log_async_call
+from modules.media_utils import send_localized_image_with_text
 
 SUPPORTED = set(i18n.get("supported_langs", []))
 DEFAULT_LANG = i18n.get("default_lang", "en")
@@ -48,8 +49,19 @@ async def cmd_language(update, context):
     ]
     buttons.append(row)
     kb = InlineKeyboardMarkup(buttons)
-    text = render_template("start_language_prompt.txt", lang=lang_ui)
-    await update.effective_message.reply_text(text, reply_markup=kb)
+    text = render_template(language_prompt.get("template", "start_language_prompt.txt"), lang=lang_ui)
+    if language_prompt.get("enabled_image"):
+        await send_localized_image_with_text(
+            bot=context.bot,
+            chat_id=update.effective_chat.id,
+            asset_key="language_prompt.image",
+            cfg_section=language_prompt,
+            lang=lang_ui,
+            text=text,
+            reply_markup=kb,
+        )
+    else:
+        await update.effective_message.reply_text(text, reply_markup=kb)
 
 
 @log_async_call
