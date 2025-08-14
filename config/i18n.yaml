@@ -1,0 +1,16 @@
+i18n:
+  enabled_start_prompt: true
+  default_lang: en
+  supported_langs: [en, ru]
+
+i18n_buttons:
+  en:
+    choose_language_title: "Choose your language"
+    language_choices:
+      en: "English"
+      ru: "Русский"
+  ru:
+    choose_language_title: "Выберите язык"
+    language_choices:
+      en: "English"
+      ru: "Русский"

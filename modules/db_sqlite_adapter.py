@@ -22,7 +22,9 @@ class SQLiteAdapter(DatabaseAdapter):
 
     # Internal helpers -------------------------------------------------
     def _connect(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("PRAGMA foreign_keys=ON")
+        return conn
 
     def _run(self, sql: str, params: Iterable[Any] | None = None,
              fetchone: bool = False, fetchall: bool = False) -> Any:
@@ -66,19 +68,39 @@ class SQLiteAdapter(DatabaseAdapter):
     # Member operations ------------------------------------------------
     def get_member_by_telegram(self, telegram_id: int) -> Optional[dict[str, Any]]:
         row = self._run(
-            "SELECT * FROM members WHERE telegram_id=?",
+            """
+            SELECT m.*, u.username, u.full_name FROM members m
+            LEFT JOIN users u ON m.telegram_id=u.telegram_id
+            WHERE m.telegram_id=?
+            """,
             [telegram_id],
             fetchone=True,
         )
-        return dict(row) if row else None
+        if row:
+            res = dict(row)
+            exp = res.get("expires_at")
+            if exp is not None:
+                res["expires_at"] = datetime.utcfromtimestamp(exp).isoformat()
+            return res
+        return None
 
     def get_member_by_membership_id(self, membership_id: str) -> Optional[dict[str, Any]]:
         row = self._run(
-            "SELECT * FROM members WHERE membership_id=?",
+            """
+            SELECT m.*, u.username, u.full_name FROM members m
+            LEFT JOIN users u ON m.telegram_id=u.telegram_id
+            WHERE m.membership_id=?
+            """,
             [membership_id],
             fetchone=True,
         )
-        return dict(row) if row else None
+        if row:
+            res = dict(row)
+            exp = res.get("expires_at")
+            if exp is not None:
+                res["expires_at"] = datetime.utcfromtimestamp(exp).isoformat()
+            return res
+        return None
 
     def upsert_member(
         self,
@@ -90,18 +112,26 @@ class SQLiteAdapter(DatabaseAdapter):
     ) -> None:
         self._run(
             """
-            INSERT INTO members (membership_id, telegram_id, username, full_name, is_confirmed)
-            VALUES (?,?,?,?,?)
-            ON CONFLICT(membership_id) DO UPDATE SET
-                telegram_id=excluded.telegram_id,
+            INSERT INTO users (telegram_id, username, full_name)
+            VALUES (?,?,?)
+            ON CONFLICT(telegram_id) DO UPDATE SET
                 username=excluded.username,
                 full_name=excluded.full_name
             """,
-            [membership_id, telegram_id, username, full_name, int(is_confirmed)],
+            [telegram_id, username, full_name],
+        )
+        self._run(
+            """
+            INSERT INTO members (membership_id, telegram_id, is_confirmed)
+            VALUES (?,?,?)
+            ON CONFLICT(membership_id) DO UPDATE SET
+                telegram_id=excluded.telegram_id
+            """,
+            [membership_id, telegram_id, int(is_confirmed)],
         )
 
     def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
-        expires = expires_at.isoformat() if expires_at else None
+        expires = int(expires_at.timestamp()) if expires_at else None
         self._run(
             "UPDATE members SET is_confirmed=?, expires_at=?, warn_sent_at=NULL, grace_notified_at=NULL WHERE membership_id=?",
             [int(is_confirmed), expires, membership_id],
@@ -121,11 +151,21 @@ class SQLiteAdapter(DatabaseAdapter):
         except (ValueError, TypeError):
             username = str(key).lstrip("@")
             row = self._run(
-                "SELECT * FROM members WHERE username=?",
+                """
+                SELECT m.*, u.username, u.full_name FROM members m
+                JOIN users u ON m.telegram_id=u.telegram_id
+                WHERE u.username=?
+                """,
                 [username],
                 fetchone=True,
             )
-            return dict(row) if row else None
+            if row:
+                res = dict(row)
+                exp = res.get("expires_at")
+                if exp is not None:
+                    res["expires_at"] = datetime.utcfromtimestamp(exp).isoformat()
+                return res
+            return None
 
     def set_banned(self, member_id: int, banned: bool) -> None:
         self._run(
@@ -136,7 +176,7 @@ class SQLiteAdapter(DatabaseAdapter):
     def set_confirmed(
         self, member_id: int, confirmed: bool, expires_at: datetime | None = None
     ) -> None:
-        expires = expires_at.isoformat() if expires_at else None
+        expires = int(expires_at.timestamp()) if expires_at else None
         self._run(
             "UPDATE members SET is_confirmed=?, expires_at=?, warn_sent_at=NULL, grace_notified_at=NULL WHERE telegram_id=?",
             [int(confirmed), expires, member_id],
@@ -146,32 +186,59 @@ class SQLiteAdapter(DatabaseAdapter):
         now = datetime.utcnow()
         if scope == "active":
             rows = self._run(
-                "SELECT * FROM members WHERE is_banned=0 AND is_confirmed=1",
+                "SELECT m.*, u.username, u.full_name FROM members m LEFT JOIN users u ON m.telegram_id=u.telegram_id WHERE m.is_banned=0 AND m.is_confirmed=1",
                 fetchall=True,
             )
             result = []
             for r in rows:
                 exp = r["expires_at"]
-                if not exp or datetime.fromisoformat(exp) > now:
-                    result.append(dict(r))
+                if not exp or datetime.utcfromtimestamp(exp) > now:
+                    row = dict(r)
+                    if exp:
+                        row["expires_at"] = datetime.utcfromtimestamp(exp).isoformat()
+                    result.append(row)
             return result
         if scope == "expired":
             rows = self._run(
-                "SELECT * FROM members WHERE is_confirmed=1 AND expires_at IS NOT NULL",
+                "SELECT m.*, u.username, u.full_name FROM members m LEFT JOIN users u ON m.telegram_id=u.telegram_id WHERE m.is_confirmed=1 AND m.expires_at IS NOT NULL",
                 fetchall=True,
             )
-            return [dict(r) for r in rows if datetime.fromisoformat(r["expires_at"]) <= now]
+            result = []
+            for r in rows:
+                exp = r["expires_at"]
+                if exp and datetime.utcfromtimestamp(exp) <= now:
+                    row = dict(r)
+                    row["expires_at"] = datetime.utcfromtimestamp(exp).isoformat()
+                    result.append(row)
+            return result
         if scope == "banned":
             rows = self._run(
-                "SELECT * FROM members WHERE is_banned=1",
+                "SELECT m.*, u.username, u.full_name FROM members m LEFT JOIN users u ON m.telegram_id=u.telegram_id WHERE m.is_banned=1",
                 fetchall=True,
             )
-            return [dict(r) for r in rows]
-        rows = self._run("SELECT * FROM members", fetchall=True)
-        return [dict(r) for r in rows]
+            result = []
+            for r in rows:
+                exp = r["expires_at"]
+                row = dict(r)
+                if exp:
+                    row["expires_at"] = datetime.utcfromtimestamp(exp).isoformat()
+                result.append(row)
+            return result
+        rows = self._run(
+            "SELECT m.*, u.username, u.full_name FROM members m LEFT JOIN users u ON m.telegram_id=u.telegram_id",
+            fetchall=True,
+        )
+        result = []
+        for r in rows:
+            exp = r["expires_at"]
+            row = dict(r)
+            if exp:
+                row["expires_at"] = datetime.utcfromtimestamp(exp).isoformat()
+            result.append(row)
+        return result
 
     def update_expiration(self, membership_id: str, expires_at: datetime | None) -> None:
-        expires = expires_at.isoformat() if expires_at else None
+        expires = int(expires_at.timestamp()) if expires_at else None
         self._run(
             "UPDATE members SET expires_at=?, warn_sent_at=NULL, grace_notified_at=NULL WHERE membership_id=?",
             [expires, membership_id],
@@ -184,9 +251,11 @@ class SQLiteAdapter(DatabaseAdapter):
         )
         result: list[dict[str, Any]] = []
         for r in rows:
-            expires = datetime.fromisoformat(r["expires_at"])
+            expires = datetime.utcfromtimestamp(r["expires_at"])
             if 0 < (expires - now).total_seconds() <= threshold:
-                result.append(dict(r))
+                row = dict(r)
+                row["expires_at"] = expires.isoformat()
+                result.append(row)
         return result
 
     def fetch_expired_members(self, now: datetime) -> list[dict[str, Any]]:
@@ -196,9 +265,11 @@ class SQLiteAdapter(DatabaseAdapter):
         )
         result: list[dict[str, Any]] = []
         for r in rows:
-            expires = datetime.fromisoformat(r["expires_at"])
+            expires = datetime.utcfromtimestamp(r["expires_at"])
             if expires <= now:
-                result.append(dict(r))
+                row = dict(r)
+                row["expires_at"] = expires.isoformat()
+                result.append(row)
         return result
 
     def mark_warning_sent(self, telegram_id: int) -> None:
@@ -232,10 +303,12 @@ class SQLiteAdapter(DatabaseAdapter):
         )
         result: list[dict[str, Any]] = []
         for r in rows:
-            expires = datetime.fromisoformat(r["expires_at"])
+            expires = datetime.utcfromtimestamp(r["expires_at"])
             diff = (now - expires).total_seconds()
             if 0 <= diff <= grace_sec:
-                result.append(dict(r))
+                row = dict(r)
+                row["expires_at"] = expires.isoformat()
+                result.append(row)
         return result
 
     def mark_grace_notified(self, telegram_id: int) -> None:
@@ -271,4 +344,23 @@ class SQLiteAdapter(DatabaseAdapter):
     # Testing helper ---------------------------------------------------
     def execute(self, sql: str, params: Iterable[Any] | None = None) -> None:
         self._run(sql, params)
+
+    # User preferences -------------------------------------------------
+    def get_user_locale(self, telegram_id: int) -> Optional[str]:
+        row = self._run(
+            "SELECT locale FROM users WHERE telegram_id=?",
+            [telegram_id],
+            fetchone=True,
+        )
+        return row["locale"] if row else None
+
+    def set_user_locale(self, telegram_id: int, lang: str) -> None:
+        self._run(
+            """
+            INSERT INTO users (telegram_id, locale)
+            VALUES (?,?)
+            ON CONFLICT(telegram_id) DO UPDATE SET locale=excluded.locale
+            """,
+            [telegram_id, lang],
+        )
 

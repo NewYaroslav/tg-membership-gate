@@ -60,19 +60,39 @@ class PostgresAdapter(DatabaseAdapter):
     # Member operations ------------------------------------------------
     def get_member_by_telegram(self, telegram_id: int) -> Optional[dict[str, Any]]:
         row = self._run(
-            "SELECT * FROM members WHERE telegram_id=%s",
+            """
+            SELECT m.*, u.username, u.full_name FROM members m
+            LEFT JOIN users u ON m.telegram_id=u.telegram_id
+            WHERE m.telegram_id=%s
+            """,
             [telegram_id],
             fetchone=True,
         )
-        return dict(row) if row else None
+        if row:
+            res = dict(row)
+            exp = res.get("expires_at")
+            if exp is not None:
+                res["expires_at"] = exp.isoformat()
+            return res
+        return None
 
     def get_member_by_membership_id(self, membership_id: str) -> Optional[dict[str, Any]]:
         row = self._run(
-            "SELECT * FROM members WHERE membership_id=%s",
+            """
+            SELECT m.*, u.username, u.full_name FROM members m
+            LEFT JOIN users u ON m.telegram_id=u.telegram_id
+            WHERE m.membership_id=%s
+            """,
             [membership_id],
             fetchone=True,
         )
-        return dict(row) if row else None
+        if row:
+            res = dict(row)
+            exp = res.get("expires_at")
+            if exp is not None:
+                res["expires_at"] = exp.isoformat()
+            return res
+        return None
 
     def upsert_member(
         self,
@@ -84,14 +104,22 @@ class PostgresAdapter(DatabaseAdapter):
     ) -> None:
         self._run(
             """
-            INSERT INTO members (membership_id, telegram_id, username, full_name, is_confirmed)
-            VALUES (%s,%s,%s,%s,%s)
-            ON CONFLICT(membership_id) DO UPDATE SET
-                telegram_id=EXCLUDED.telegram_id,
+            INSERT INTO users (telegram_id, username, full_name)
+            VALUES (%s,%s,%s)
+            ON CONFLICT(telegram_id) DO UPDATE SET
                 username=EXCLUDED.username,
                 full_name=EXCLUDED.full_name
             """,
-            [membership_id, telegram_id, username, full_name, is_confirmed],
+            [telegram_id, username, full_name],
+        )
+        self._run(
+            """
+            INSERT INTO members (membership_id, telegram_id, is_confirmed)
+            VALUES (%s,%s,%s)
+            ON CONFLICT(membership_id) DO UPDATE SET
+                telegram_id=EXCLUDED.telegram_id
+            """,
+            [membership_id, telegram_id, is_confirmed],
         )
 
     def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
@@ -114,11 +142,21 @@ class PostgresAdapter(DatabaseAdapter):
         except (ValueError, TypeError):
             username = str(key).lstrip("@")
             row = self._run(
-                "SELECT * FROM members WHERE username=%s",
+                """
+                SELECT m.*, u.username, u.full_name FROM members m
+                JOIN users u ON m.telegram_id=u.telegram_id
+                WHERE u.username=%s
+                """,
                 [username],
                 fetchone=True,
             )
-            return dict(row) if row else None
+            if row:
+                res = dict(row)
+                exp = res.get("expires_at")
+                if exp is not None:
+                    res["expires_at"] = exp.isoformat()
+                return res
+            return None
 
     def set_banned(self, member_id: int, banned: bool) -> None:
         self._run(
@@ -138,29 +176,68 @@ class PostgresAdapter(DatabaseAdapter):
         now = datetime.utcnow()
         if scope == "active":
             rows = self._run(
-                "SELECT * FROM members WHERE is_banned=FALSE AND is_confirmed=TRUE",
+                """
+                SELECT m.*, u.username, u.full_name FROM members m
+                LEFT JOIN users u ON m.telegram_id=u.telegram_id
+                WHERE m.is_banned=FALSE AND m.is_confirmed=TRUE
+                """,
                 fetchall=True,
             )
             result = []
             for r in rows:
                 exp = r["expires_at"]
                 if not exp or exp > now:
-                    result.append(dict(r))
+                    row = dict(r)
+                    if exp:
+                        row["expires_at"] = exp.isoformat()
+                    result.append(row)
             return result
         if scope == "expired":
             rows = self._run(
-                "SELECT * FROM members WHERE is_confirmed=TRUE AND expires_at IS NOT NULL",
+                """
+                SELECT m.*, u.username, u.full_name FROM members m
+                LEFT JOIN users u ON m.telegram_id=u.telegram_id
+                WHERE m.is_confirmed=TRUE AND m.expires_at IS NOT NULL
+                """,
                 fetchall=True,
             )
-            return [dict(r) for r in rows if r["expires_at"] <= now]
+            result = []
+            for r in rows:
+                exp = r["expires_at"]
+                if exp and exp <= now:
+                    row = dict(r)
+                    row["expires_at"] = exp.isoformat()
+                    result.append(row)
+            return result
         if scope == "banned":
             rows = self._run(
-                "SELECT * FROM members WHERE is_banned=TRUE",
+                """
+                SELECT m.*, u.username, u.full_name FROM members m
+                LEFT JOIN users u ON m.telegram_id=u.telegram_id
+                WHERE m.is_banned=TRUE
+                """,
                 fetchall=True,
             )
-            return [dict(r) for r in rows]
-        rows = self._run("SELECT * FROM members", fetchall=True)
-        return [dict(r) for r in rows]
+            result = []
+            for r in rows:
+                row = dict(r)
+                exp = r["expires_at"]
+                if exp:
+                    row["expires_at"] = exp.isoformat()
+                result.append(row)
+            return result
+        rows = self._run(
+            "SELECT m.*, u.username, u.full_name FROM members m LEFT JOIN users u ON m.telegram_id=u.telegram_id",
+            fetchall=True,
+        )
+        result = []
+        for r in rows:
+            row = dict(r)
+            exp = r["expires_at"]
+            if exp:
+                row["expires_at"] = exp.isoformat()
+            result.append(row)
+        return result
 
     def update_expiration(self, membership_id: str, expires_at: datetime | None) -> None:
         self._run(
@@ -176,7 +253,9 @@ class PostgresAdapter(DatabaseAdapter):
         result: list[dict[str, Any]] = []
         for r in rows:
             if 0 < (r["expires_at"] - now).total_seconds() <= threshold:
-                result.append(dict(r))
+                row = dict(r)
+                row["expires_at"] = r["expires_at"].isoformat()
+                result.append(row)
         return result
 
     def fetch_expired_members(self, now: datetime) -> list[dict[str, Any]]:
@@ -187,7 +266,9 @@ class PostgresAdapter(DatabaseAdapter):
         result: list[dict[str, Any]] = []
         for r in rows:
             if r["expires_at"] <= now:
-                result.append(dict(r))
+                row = dict(r)
+                row["expires_at"] = r["expires_at"].isoformat()
+                result.append(row)
         return result
 
     def mark_warning_sent(self, telegram_id: int) -> None:
@@ -222,7 +303,9 @@ class PostgresAdapter(DatabaseAdapter):
         for r in rows:
             diff = (now - r["expires_at"]).total_seconds()
             if 0 <= diff <= grace_sec:
-                result.append(dict(r))
+                row = dict(r)
+                row["expires_at"] = r["expires_at"].isoformat()
+                result.append(row)
         return result
 
     def mark_grace_notified(self, telegram_id: int) -> None:
@@ -257,4 +340,23 @@ class PostgresAdapter(DatabaseAdapter):
     # Testing helper ---------------------------------------------------
     def execute(self, sql: str, params: Iterable[Any] | None = None) -> None:
         self._run(sql, params)
+
+    # User preferences -------------------------------------------------
+    def get_user_locale(self, telegram_id: int) -> Optional[str]:
+        row = self._run(
+            "SELECT locale FROM users WHERE telegram_id=%s",
+            [telegram_id],
+            fetchone=True,
+        )
+        return row["locale"] if row else None
+
+    def set_user_locale(self, telegram_id: int, lang: str) -> None:
+        self._run(
+            """
+            INSERT INTO users (telegram_id, locale)
+            VALUES (%s,%s)
+            ON CONFLICT (telegram_id) DO UPDATE SET locale=EXCLUDED.locale
+            """,
+            [telegram_id, lang],
+        )
 

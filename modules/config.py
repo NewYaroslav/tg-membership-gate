@@ -6,6 +6,9 @@ with open("config/ui_config.yaml", "r", encoding="utf-8") as f:
 with open("config/membership.yaml", "r", encoding="utf-8") as f:
     _mb = yaml.safe_load(f)
 
+with open("config/i18n.yaml", "r", encoding="utf-8") as f:
+    _i18n = yaml.safe_load(f)
+
 # User interface
 telegram_start = _ui.get("start", {})
 templates = _ui.get("messages", {})
@@ -17,3 +20,7 @@ admin_buttons = _mb.get("admin", {})
 expiration = _mb.get("expiration", {})
 session_timeout = _mb.get("session_timeout", {})
 renewal = _mb.get("renewal", {})
+
+# i18n
+i18n = _i18n.get("i18n", {})
+i18n_buttons = _i18n.get("i18n_buttons", {})
