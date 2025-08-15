@@ -110,25 +110,78 @@ class SQLiteAdapter(DatabaseAdapter):
         full_name: str | None,
         is_confirmed: bool = False,
     ) -> None:
-        self._run(
-            """
-            INSERT INTO users (telegram_id, username, full_name)
-            VALUES (?,?,?)
-            ON CONFLICT(telegram_id) DO UPDATE SET
-                username=excluded.username,
-                full_name=excluded.full_name
-            """,
-            [telegram_id, username, full_name],
-        )
-        self._run(
-            """
-            INSERT INTO members (membership_id, telegram_id, is_confirmed)
-            VALUES (?,?,?)
-            ON CONFLICT(membership_id) DO UPDATE SET
-                telegram_id=excluded.telegram_id
-            """,
-            [membership_id, telegram_id, int(is_confirmed)],
-        )
+        conn = self._connect()
+        conn.row_factory = sqlite3.Row
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            cur = conn.cursor()
+            # upsert user row -------------------------------------------------
+            cur.execute(
+                """
+                INSERT INTO users (telegram_id, username, full_name)
+                VALUES (?,?,?)
+                ON CONFLICT(telegram_id) DO UPDATE SET
+                    username=excluded.username,
+                    full_name=excluded.full_name
+                """,
+                (telegram_id, username, full_name),
+            )
+
+            # fetch existing member rows -----------------------------------
+            cur.execute(
+                "SELECT * FROM members WHERE membership_id=?",
+                (membership_id,),
+            )
+            row_mid = cur.fetchone()
+            cur.execute(
+                "SELECT * FROM members WHERE telegram_id=?",
+                (telegram_id,),
+            )
+            row_tid = cur.fetchone()
+
+            ic = 1 if is_confirmed else 0
+
+            if row_mid and not row_tid:
+                # A. membership exists, telegram not yet bound
+                cur.execute(
+                    "UPDATE members SET telegram_id=?, is_confirmed=COALESCE(is_confirmed, ?) WHERE id=?",
+                    (telegram_id, ic, row_mid["id"]),
+                )
+            elif not row_mid and row_tid:
+                # B. telegram bound to different membership -> rebind
+                cur.execute(
+                    "UPDATE members SET membership_id=?, is_confirmed=COALESCE(is_confirmed, ?) WHERE id=?",
+                    (membership_id, ic, row_tid["id"]),
+                )
+            elif row_mid and row_tid and row_mid["id"] != row_tid["id"]:
+                # C. conflicting membership/telegram pairs
+                cur.execute(
+                    "UPDATE members SET telegram_id=NULL WHERE id=?",
+                    (row_tid["id"],),
+                )
+                cur.execute(
+                    "UPDATE members SET telegram_id=?, is_confirmed=COALESCE(is_confirmed, ?) WHERE id=?",
+                    (telegram_id, ic, row_mid["id"]),
+                )
+            elif row_mid and row_tid and row_mid["id"] == row_tid["id"]:
+                # existing mapping, ensure confirmation field is set
+                cur.execute(
+                    "UPDATE members SET is_confirmed=COALESCE(is_confirmed, ?) WHERE id=?",
+                    (ic, row_mid["id"]),
+                )
+            else:
+                # D. no records yet
+                cur.execute(
+                    "INSERT INTO members (membership_id, telegram_id, is_confirmed) VALUES (?,?,?)",
+                    (membership_id, telegram_id, ic),
+                )
+            conn.commit()
+        except Exception as exc:
+            conn.rollback()
+            logger.error("Database error in db_upsert_member: %s", exc)
+            raise
+        finally:
+            conn.close()
 
     def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
         expires = int(expires_at.timestamp()) if expires_at else None
