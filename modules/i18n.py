@@ -35,7 +35,9 @@ def plural_days(n: int, lang: str) -> str:
             return "дня"
         return "дней"
     return "day" if n == 1 else "days"
-\n\nasync def send_language_prompt(update, context, cfg, *, asset_prefix: str, default_template: str):
+
+
+async def send_language_prompt(update, context, cfg, *, asset_prefix: str, default_template: str):
     from modules.template_engine import render_template
 
     lang_ui = normalize_lang(getattr(update.effective_user, "language_code", None))
@@ -81,7 +83,19 @@ async def on_lang_pick(update, context):
     code = q.data.split(":", 1)[1]
     db_set_user_locale(update.effective_user.id, code)
     await q.answer()
+
     text = render_template("language_set.txt", lang=code)
-    await q.edit_message_text(text)
+
+    msg = q.message
+    # Если сообщение — обычный текст
+    if getattr(msg, "text", None):
+        await q.edit_message_text(text)
+    # Если сообщение — фото/медиа с подписью
+    elif getattr(msg, "caption", None):
+        await q.edit_message_caption(caption=text)
+    # На всякий случай fallback — отправить новое сообщение
+    else:
+        await msg.reply_text(text)
+        
     if context.user_data.get("state") == UserState.WAITING_FOR_LANGUAGE:
         await handle_start_command(update, context)
