@@ -51,7 +51,8 @@ def build_admin_keyboard(membership_id: str) -> InlineKeyboardMarkup:
 
 
 def _user_lang(update: Update) -> str:
-    return resolve_user_lang(update, {"locale": db_get_user_locale(update.effective_user.id)})
+    user_row = {"locale": db_get_user_locale(update.effective_user.id)}
+    return resolve_user_lang(update, user_row)
 
 
 @log_async_call
@@ -128,7 +129,9 @@ async def handle_idle_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @log_async_call
 async def handle_unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Неизвестная команда. Используйте /start")
+    lang = _user_lang(update)
+    text = render_template("unknown_action.txt", lang=lang)
+    await update.message.reply_text(text)
 
 
 # Admin decision handlers ---------------------------------------------

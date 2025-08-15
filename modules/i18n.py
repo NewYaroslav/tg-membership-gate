@@ -16,7 +16,7 @@ def normalize_lang(code: str | None) -> str:
     base = code.split("-")[0].lower()
     return base if base in SUPPORTED else DEFAULT_LANG
 
-async def resolve_user_lang(update, user_row) -> str:
+def resolve_user_lang(update, user_row) -> str:
     if user_row and user_row.get("locale") in SUPPORTED:
         return user_row["locale"]
     if not i18n.get("enabled_start_prompt", True):
