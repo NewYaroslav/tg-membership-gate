@@ -9,7 +9,7 @@ from modules.config import telegram_start
 from modules.auth_utils import is_admin
 from modules.log_utils import log_async_call
 from modules.inactivity import clear_user_activity
-from modules.i18n import normalize_lang
+from modules.i18n import resolve_user_lang
 from modules.storage import db_get_user_locale
 from modules.media_utils import send_localized_image_with_text
 
@@ -19,8 +19,8 @@ async def handle_start_command(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     clear_user_activity(user.id)
     username = user.first_name or user.username or "user"
-    lang = db_get_user_locale(user.id)
-    lang = normalize_lang(lang or getattr(user, "language_code", None))
+    user_row = {"locale": db_get_user_locale(user.id)}
+    lang = resolve_user_lang(update, user_row)
     text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
     button_text = telegram_start.get("action_button_text", "Получить доступ")
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(text=button_text, callback_data="request_access")]])
