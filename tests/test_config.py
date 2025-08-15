@@ -14,6 +14,7 @@ from modules.config import (
     i18n,
     i18n_buttons,
     language_prompt,
+    start_language_prompt,
     post_join,
 )
 
@@ -30,5 +31,6 @@ def test_config_loaded():
     assert "default_lang" in i18n
     assert "en" in i18n_buttons
     assert "template" in language_prompt
+    assert "template" in start_language_prompt
     assert "template" in post_join
     assert "enabled_image" in post_join

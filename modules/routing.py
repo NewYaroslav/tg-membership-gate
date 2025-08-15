@@ -21,6 +21,8 @@ async def route_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["state"] = UserState.IDLE
         state = UserState.IDLE
         logger.debug("Initialized state for user %s", update.effective_user.id)
+    if state == UserState.WAITING_FOR_LANGUAGE:
+        return
     if state == UserState.WAITING_FOR_ID:
         await handle_id_submission(update, context)
     else:
@@ -32,6 +34,8 @@ async def handle_inline_button(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
     state = context.user_data.get("state")
+    if state == UserState.WAITING_FOR_LANGUAGE:
+        return
     data = query.data or ""
     if data == "request_access" and state == UserState.WAITING_FOR_REQUEST_BUTTON:
         await handle_request_button(update, context)

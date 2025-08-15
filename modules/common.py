@@ -5,11 +5,11 @@ from telegram.ext import ContextTypes
 
 from modules.template_engine import render_template
 from modules.states import UserState
-from modules.config import telegram_start
+from modules.config import telegram_start, start_language_prompt, i18n as i18n_cfg
 from modules.auth_utils import is_admin
 from modules.log_utils import log_async_call
 from modules.inactivity import clear_user_activity
-from modules.i18n import resolve_user_lang
+from modules.i18n import resolve_user_lang, send_language_prompt
 from modules.storage import db_get_user_locale
 from modules.media_utils import send_localized_image_with_text
 
@@ -20,6 +20,16 @@ async def handle_start_command(update: Update, context: ContextTypes.DEFAULT_TYP
     clear_user_activity(user.id)
     username = user.first_name or user.username or "user"
     user_row = {"locale": db_get_user_locale(user.id)}
+    if i18n_cfg.get("enabled_start_prompt", True) and not user_row["locale"]:
+        await send_language_prompt(
+            update,
+            context,
+            start_language_prompt,
+            asset_prefix="start_language_prompt",
+            default_template="start_language_prompt.txt",
+        )
+        context.user_data["state"] = UserState.WAITING_FOR_LANGUAGE
+        return
     lang = resolve_user_lang(update, user_row)
     text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
     button_text = telegram_start.get("action_button_text", "Получить доступ")

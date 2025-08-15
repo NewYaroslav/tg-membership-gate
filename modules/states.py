@@ -2,6 +2,7 @@ class UserState:
     """Possible conversation states for regular users."""
 
     IDLE = "IDLE"
+    WAITING_FOR_LANGUAGE = "WAITING_FOR_LANGUAGE"
     WAITING_FOR_ID = "WAITING_FOR_ID"
     WAITING_FOR_REQUEST_BUTTON = "WAITING_FOR_REQUEST_BUTTON"
 

@@ -14,6 +14,7 @@ telegram_start = _ui.get("start", {})
 templates = _ui.get("messages", {})
 admin_ui = _ui.get("admin_interface", {})
 language_prompt = _ui.get("language_prompt", {})
+start_language_prompt = _ui.get("start_language_prompt", {})
 post_join = _ui.get("post_join", {})
 
 # Membership rules

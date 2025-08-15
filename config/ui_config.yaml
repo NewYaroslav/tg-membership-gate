@@ -28,6 +28,13 @@ admin_interface:
 
 language_prompt:
   enabled_image: false
+  template: language_prompt.txt
+  image:
+    en: { path: assets/en/start.jpg }
+    ru: { path: assets/ru/start.jpg }
+
+start_language_prompt:
+  enabled_image: false
   template: start_language_prompt.txt
   image:
     en: { path: assets/en/start.jpg }
