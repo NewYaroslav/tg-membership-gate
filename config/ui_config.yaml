@@ -27,18 +27,18 @@ admin_interface:
   ban_text: "Забанить"
 
 language_prompt:
-  enabled_image: false
+  enabled_image: true
   template: language_prompt.txt
   image:
-    en: { path: assets/en/start.jpg }
-    ru: { path: assets/ru/start.jpg }
+    en: { path: assets/en/language.jpg }
+    ru: { path: assets/ru/language.jpg }
 
 start_language_prompt:
-  enabled_image: false
+  enabled_image: true
   template: start_language_prompt.txt
   image:
-    en: { path: assets/en/start.jpg }
-    ru: { path: assets/ru/start.jpg }
+    en: { path: assets/en/language.jpg }
+    ru: { path: assets/ru/language.jpg }
 
 post_join:
   enabled: true
