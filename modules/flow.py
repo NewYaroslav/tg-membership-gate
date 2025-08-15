@@ -163,6 +163,7 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
 
 @log_async_call
 async def handle_idle_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["state"] = UserState.WAITING_FOR_REQUEST_BUTTON
     lang = _user_lang(update)
     username = make_username(update.effective_user, lang)
     text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
@@ -188,7 +189,8 @@ async def handle_idle_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = _user_lang(update)
     text = render_template("unknown_action.txt", lang=lang)
-    await update.message.reply_text(text)
+    # await update.message.reply_text(text)
+    await update.effective_message.reply_text(text)
 
 
 # Admin decision handlers ---------------------------------------------

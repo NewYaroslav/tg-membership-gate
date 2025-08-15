@@ -4,7 +4,7 @@ id:
 admin:
   approve_durations:
     - 0       # бессрочно
-    - 2592000 # 30 дней
+    # - 2592000 # 30 дней
   enable_decline: true
   enable_ban: true
 
@@ -13,8 +13,8 @@ expiration:
   warn_before_sec: 86400
 
 session_timeout:
-  seconds: 900
-  send_message: false
+  seconds: 900       # 900
+  send_message: true # false
 
 renewal:
   warn_before_sec: 86400

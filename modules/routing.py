@@ -40,7 +40,8 @@ async def handle_inline_button(update: Update, context: ContextTypes.DEFAULT_TYP
     if state == UserState.WAITING_FOR_LANGUAGE:
         return
     data = query.data or ""
-    if data == "request_access" and state == UserState.WAITING_FOR_REQUEST_BUTTON:
+    # if data == "request_access" and state == UserState.WAITING_FOR_REQUEST_BUTTON:
+    if data == "request_access" and state in (UserState.WAITING_FOR_REQUEST_BUTTON, UserState.IDLE, None):
         await handle_request_button(update, context)
     elif data.startswith("renew:"):
         await handle_renewal_selection(update, context)
