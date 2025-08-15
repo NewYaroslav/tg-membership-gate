@@ -28,7 +28,7 @@ async def on_join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ok = expires_dt > datetime.utcnow()
     if ok:
         await context.bot.approve_chat_join_request(chat_id, user_id)
-        await maybe_send_post_join(context.bot, member)
+        await maybe_send_post_join(context.bot, member, req.from_user)
     else:
         await context.bot.decline_chat_join_request(chat_id, user_id)
 
@@ -42,4 +42,4 @@ async def on_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if new_s in ("member", "administrator") and old_s in ("left", "kicked"):
         member = db_get_member_by_telegram(user.id)
         if member and member.get("is_confirmed"):
-            await maybe_send_post_join(context.bot, member)
+            await maybe_send_post_join(context.bot, member, user)
