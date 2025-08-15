@@ -21,7 +21,7 @@ from modules.auth_utils import is_admin
 from modules.states import UserState
 from modules.template_engine import render_template
 from modules.media_utils import send_localized_image_with_text
-from modules.i18n import normalize_lang
+from modules.i18n import normalize_lang, resolve_user_lang
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
 from modules.time_utils import humanize_period
@@ -50,10 +50,15 @@ def build_admin_keyboard(membership_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
+def _user_lang(update: Update) -> str:
+    return resolve_user_lang(update, {"locale": db_get_user_locale(update.effective_user.id)})
+
+
 @log_async_call
 async def handle_request_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["state"] = UserState.WAITING_FOR_ID
-    text = render_template(templates.get("ask_id", "ask_id.txt"))
+    lang = _user_lang(update)
+    text = render_template(templates.get("ask_id", "ask_id.txt"), lang=lang)
     await update.callback_query.message.reply_text(text)
 
 
@@ -62,9 +67,10 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     raw_id = update.message.text.strip()
     username = user.first_name or user.username or "user"
+    lang = _user_lang(update)
 
     if not id_pattern.fullmatch(raw_id):
-        text = render_template(templates.get("not_found", "id_not_found.txt"), membership_id=raw_id)
+        text = render_template(templates.get("not_found", "id_not_found.txt"), membership_id=raw_id, lang=lang)
         await update.message.reply_text(text)
         context.user_data["state"] = UserState.WAITING_FOR_ID
         return
@@ -73,7 +79,7 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
     db_upsert_member(raw_id, user.id, user.username, user.full_name, member.get("is_confirmed") if member else False)
 
     if member and member.get("is_banned"):
-        text = render_template(templates.get("banned", "id_banned.txt"), membership_id=raw_id)
+        text = render_template(templates.get("banned", "id_banned.txt"), membership_id=raw_id, lang=lang)
         await update.message.reply_text(text)
         context.user_data["state"] = UserState.IDLE
         return
@@ -86,9 +92,9 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
             except Exception as e:
                 logger.warning("link fail %s: %s", chat_id, e)
         if links:
-            text = render_template(templates.get("granted", "access_granted.txt"), links=links)
+            text = render_template(templates.get("granted", "access_granted.txt"), links=links, lang=lang)
         else:
-            text = render_template(templates.get("links_unavailable", "links_unavailable.txt"))
+            text = render_template(templates.get("links_unavailable", "links_unavailable.txt"), lang=lang)
         await update.message.reply_text(text, disable_web_page_preview=True)
         context.user_data["state"] = UserState.IDLE
         return
@@ -105,7 +111,7 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
         template = templates.get("waiting", "id_waiting.txt")
     else:
         template = templates.get("not_found", "id_not_found.txt")
-    text = render_template(template, membership_id=raw_id)
+    text = render_template(template, membership_id=raw_id, lang=lang)
     await update.message.reply_text(text)
     context.user_data["state"] = UserState.IDLE
 
@@ -113,7 +119,8 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
 @log_async_call
 async def handle_idle_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.first_name or update.effective_user.username or "user"
-    text = render_template(telegram_start.get("template", "start_user.txt"), username=username)
+    lang = _user_lang(update)
+    text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
     button_text = telegram_start.get("action_button_text", "Получить доступ")
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(text=button_text, callback_data="request_access")]])
     await update.message.reply_text(text, reply_markup=keyboard)
@@ -160,7 +167,8 @@ async def handle_renewal_selection(update: Update, context: ContextTypes.DEFAULT
         await context.bot.send_message(chat_id=ROOT_ADMIN_ID, text=admin_text, reply_markup=keyboard)
     except Exception as e:
         logger.exception("Failed to notify admin about renewal: %s", e)
-    await query.message.reply_text(render_template(templates.get("waiting", "id_waiting.txt")))
+    lang = _user_lang(update)
+    await query.message.reply_text(render_template(templates.get("waiting", "id_waiting.txt"), lang=lang))
 
 @log_async_call
 async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -196,6 +204,7 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
         expires_at = None if seconds == 0 else base + timedelta(seconds=seconds)
         db_set_confirmation(membership_id, True, expires_at)
         if user_id:
+            user_lang = normalize_lang(db_get_user_locale(user_id))
             links: List[str] = []
             for chat_id in ACCESS_CHATS:
                 try:
@@ -203,12 +212,11 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
                 except Exception as e:
                     logger.warning("link fail %s: %s", chat_id, e)
             if links:
-                text = render_template(templates.get("granted", "access_granted.txt"), links=links)
+                text = render_template(templates.get("granted", "access_granted.txt"), links=links, lang=user_lang)
             else:
-                text = render_template(templates.get("links_unavailable", "links_unavailable.txt"))
+                text = render_template(templates.get("links_unavailable", "links_unavailable.txt"), lang=user_lang)
             await context.bot.send_message(chat_id=user_id, text=text, disable_web_page_preview=True)
             if post_join.get("enabled"):
-                user_lang = normalize_lang(db_get_user_locale(user_id))
                 post_text = render_template(post_join.get("template", "post_join.txt"), lang=user_lang)
                 if post_join.get("enabled_image", True):
                     await send_localized_image_with_text(
@@ -229,13 +237,15 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
     elif action == "decline":
         db_set_confirmation(membership_id, False, None)
         if user_id:
-            text = render_template(templates.get("denied", "access_denied.txt"))
+            user_lang = normalize_lang(db_get_user_locale(user_id))
+            text = render_template(templates.get("denied", "access_denied.txt"), lang=user_lang)
             await context.bot.send_message(chat_id=user_id, text=text)
         await query.edit_message_text(render_template("admin_declined.txt", membership_id=membership_id))
     elif action == "ban":
         db_set_ban(membership_id, True)
         if user_id:
-            text = render_template(templates.get("banned", "id_banned.txt"), membership_id=membership_id)
+            user_lang = normalize_lang(db_get_user_locale(user_id))
+            text = render_template(templates.get("banned", "id_banned.txt"), membership_id=membership_id, lang=user_lang)
             await context.bot.send_message(chat_id=user_id, text=text)
         await query.edit_message_text(render_template("admin_banned.txt", membership_id=membership_id))
     else:

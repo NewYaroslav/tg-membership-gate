@@ -25,6 +25,10 @@ class DatabaseAdapter(ABC):
         """Return member row by membership ID."""
 
     @abstractmethod
+    def get_member_by_username(self, username: str) -> Optional[dict[str, Any]]:
+        """Return member row by username."""
+
+    @abstractmethod
     def upsert_member(
         self,
         membership_id: str,
@@ -58,6 +62,14 @@ class DatabaseAdapter(ABC):
     @abstractmethod
     def set_confirmed(self, member_id: int, confirmed: bool, expires_at: datetime | None = None) -> None:
         """Set confirmation by Telegram ID."""
+
+    @abstractmethod
+    def delete_member_by_id(self, member_id: int) -> None:
+        """Remove member row by internal ID."""
+
+    @abstractmethod
+    def delete_user_by_telegram_id(self, telegram_id: int) -> None:
+        """Remove user row by Telegram ID."""
 
     @abstractmethod
     def iter_members(self, scope: str) -> Iterable[dict[str, Any]]:

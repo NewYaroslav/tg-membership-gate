@@ -5,6 +5,8 @@ from telegram.ext import ContextTypes
 
 from modules.template_engine import render_template
 from modules.config import session_timeout, telegram_start
+from modules.storage import db_get_user_locale
+from modules.i18n import normalize_lang
 from modules.states import UserState
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
@@ -34,7 +36,8 @@ async def check_user_inactivity_loop(app) -> None:
             context = ContextTypes.DEFAULT_TYPE(application=app)
             try:
                 if send_message:
-                    text = render_template(telegram_start.get("template", "start_user.txt"), username="user")
+                    lang = normalize_lang(db_get_user_locale(uid))
+                    text = render_template(telegram_start.get("template", "start_user.txt"), username="user", lang=lang)
                     button_text = telegram_start.get("action_button_text", "Получить доступ")
                     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(text=button_text, callback_data="request_access")]])
                     await context.bot.send_message(chat_id=uid, text=text, reply_markup=keyboard)

@@ -94,6 +94,24 @@ class PostgresAdapter(DatabaseAdapter):
             return res
         return None
 
+    def get_member_by_username(self, username: str) -> Optional[dict[str, Any]]:
+        row = self._run(
+            """
+            SELECT m.*, u.username, u.full_name FROM members m
+            JOIN users u ON m.telegram_id=u.telegram_id
+            WHERE u.username=%s
+            """,
+            [username],
+            fetchone=True,
+        )
+        if row:
+            res = dict(row)
+            exp = res.get("expires_at")
+            if exp is not None:
+                res["expires_at"] = exp.isoformat()
+            return res
+        return None
+
     def upsert_member(
         self,
         membership_id: str,
@@ -171,6 +189,12 @@ class PostgresAdapter(DatabaseAdapter):
             "UPDATE members SET is_confirmed=%s, expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL WHERE telegram_id=%s",
             [confirmed, expires_at, member_id],
         )
+
+    def delete_member_by_id(self, member_id: int) -> None:
+        self._run("DELETE FROM members WHERE id=%s", [member_id])
+
+    def delete_user_by_telegram_id(self, telegram_id: int) -> None:
+        self._run("DELETE FROM users WHERE telegram_id=%s", [telegram_id])
 
     def iter_members(self, scope: str) -> Iterable[dict[str, Any]]:
         now = datetime.utcnow()

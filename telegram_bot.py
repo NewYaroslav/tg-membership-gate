@@ -21,6 +21,7 @@ from modules.admin_commands import (
     handle_ban,
     handle_unban,
     handle_kick,
+    handle_remove,
     handle_export,
     handle_user,
     handle_user_action,
@@ -77,10 +78,10 @@ def run_telegram_bot():
     app.add_handler(CommandHandler("ban", handle_ban))
     app.add_handler(CommandHandler("unban", handle_unban))
     app.add_handler(CommandHandler("kick", handle_kick))
-    app.add_handler(CommandHandler("remove", handle_kick))
+    app.add_handler(CommandHandler("remove", handle_remove))
     app.add_handler(CommandHandler("export_users", handle_export))
     app.add_handler(CommandHandler("user", handle_user))
-    app.add_handler(CallbackQueryHandler(handle_user_action, pattern=r"^(ban|unban|kick):\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_user_action, pattern=r"^admin:(ban|unban|kick|remove):"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, route_message))
     app.add_handler(CallbackQueryHandler(on_lang_pick, pattern=r"^lang:"))
     app.add_handler(CallbackQueryHandler(handle_inline_button))

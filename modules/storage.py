@@ -23,8 +23,17 @@ def db_get_member_by_telegram(telegram_id: int):
 
 
 @log_sync_call
-def db_get_member_by_id(membership_id: str):
+def db_get_member_by_membership_id(membership_id: str):
     return get_db().get_member_by_membership_id(membership_id)
+
+
+# Backward-compatible alias
+db_get_member_by_id = db_get_member_by_membership_id
+
+
+@log_sync_call
+def db_get_member_by_username(username: str):
+    return get_db().get_member_by_username(username)
 
 
 @log_sync_call
@@ -55,6 +64,16 @@ def db_set_banned(member_id: int, banned: bool) -> None:
 @log_sync_call
 def db_set_confirmed(member_id: int, confirmed: bool, expires_at: datetime | None) -> None:
     get_db().set_confirmed(member_id, confirmed, expires_at)
+
+
+@log_sync_call
+def db_delete_member_by_id(member_id: int) -> None:
+    get_db().delete_member_by_id(member_id)
+
+
+@log_sync_call
+def db_delete_user_by_telegram_id(telegram_id: int) -> None:
+    get_db().delete_user_by_telegram_id(telegram_id)
 
 
 @log_sync_call

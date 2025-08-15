@@ -10,10 +10,15 @@ from telegram.ext import ContextTypes
 from modules.auth_utils import is_admin
 from modules.template_engine import render_template
 from modules.storage import (
-    db_get_member_by_id_or_username,
-    db_set_banned,
-    db_set_confirmed,
+    db_get_member_by_membership_id,
+    db_get_member_by_telegram,
+    db_get_member_by_username,
+    db_set_ban,
+    db_set_confirmation,
     db_iter_members,
+    db_delete_member_by_id,
+    db_delete_user_by_telegram_id,
+    db_get_user_locale,
 )
 from modules.access_control import (
     ban_in_all_access_chats,
@@ -23,6 +28,23 @@ from modules.access_control import (
 )
 from modules.time_utils import humanize_period
 from modules.log_utils import log_async_call
+
+
+def resolve_member_by_key(key: str | int) -> dict | None:
+    member = None
+    if not str(key).startswith("@"):
+        member = db_get_member_by_membership_id(str(key))
+        if member:
+            return member
+    if str(key).lstrip("-+").isdigit():
+        member = db_get_member_by_telegram(int(key))
+        if member:
+            return member
+    if str(key).startswith("@"):
+        member = db_get_member_by_username(str(key)[1:])
+        if member:
+            return member
+    return None
 
 
 def _calc_status(member: dict) -> tuple[str, str, str]:
@@ -50,8 +72,8 @@ def _calc_status(member: dict) -> tuple[str, str, str]:
 async def _ban_member(bot, member: dict):
     user_id = member["telegram_id"]
     summary = await ban_in_all_access_chats(bot, user_id)
-    db_set_banned(user_id, True)
-    db_set_confirmed(user_id, False, None)
+    db_set_ban(member["membership_id"], True)
+    db_set_confirmation(member["membership_id"], False, None)
     member.update(is_banned=1, is_confirmed=0, expires_at=None)
     return summary
 
@@ -59,7 +81,7 @@ async def _ban_member(bot, member: dict):
 async def _unban_member(bot, member: dict):
     user_id = member["telegram_id"]
     summary = await unban_in_all_access_chats(bot, user_id)
-    db_set_banned(user_id, False)
+    db_set_ban(member["membership_id"], False)
     member.update(is_banned=0)
     return summary
 
@@ -67,8 +89,15 @@ async def _unban_member(bot, member: dict):
 async def _kick_member(bot, member: dict):
     user_id = member["telegram_id"]
     summary = await kick_in_all_access_chats(bot, user_id)
-    db_set_confirmed(user_id, False, None)
+    db_set_confirmation(member["membership_id"], False, None)
     member.update(is_confirmed=0, expires_at=None)
+    return summary
+
+
+async def _remove_member(bot, member: dict):
+    summary = await _kick_member(bot, member)
+    db_delete_member_by_id(member["id"])
+    db_delete_user_by_telegram_id(member["telegram_id"])
     return summary
 
 
@@ -84,9 +113,11 @@ async def _build_user_card(bot, member: dict):
                 break
         except Exception:
             continue
+    user_locale = db_get_user_locale(member["telegram_id"])
     text = render_template(
         "admin_user_card.txt",
-        id=member["telegram_id"],
+        membership_id=member.get("membership_id"),
+        telegram_id=member["telegram_id"],
         username=member.get("username"),
         is_confirmed=member.get("is_confirmed"),
         is_banned=member.get("is_banned"),
@@ -94,12 +125,14 @@ async def _build_user_card(bot, member: dict):
         expires_at=expires_at,
         remaining=remaining_human,
         in_channels=in_channels,
+        locale=user_locale,
     )
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("Ban", callback_data=f"ban:{member['telegram_id']}") ,
-            InlineKeyboardButton("Unban", callback_data=f"unban:{member['telegram_id']}") ,
-            InlineKeyboardButton("Kick", callback_data=f"kick:{member['telegram_id']}") ,
+            InlineKeyboardButton("Ban", callback_data=f"admin:ban:{member['membership_id']}") ,
+            InlineKeyboardButton("Unban", callback_data=f"admin:unban:{member['membership_id']}") ,
+            InlineKeyboardButton("Kick", callback_data=f"admin:kick:{member['membership_id']}") ,
+            InlineKeyboardButton("Remove", callback_data=f"admin:remove:{member['membership_id']}") ,
         ]
     ])
     return text, keyboard
@@ -114,7 +147,7 @@ async def handle_ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(render_template("id_required.txt"))
         return
     key = context.args[0]
-    member = db_get_member_by_id_or_username(key)
+    member = resolve_member_by_key(key)
     if not member:
         await update.message.reply_text(render_template("admin_user_not_found.txt"))
         return
@@ -140,7 +173,7 @@ async def handle_unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(render_template("id_required.txt"))
         return
     key = context.args[0]
-    member = db_get_member_by_id_or_username(key)
+    member = resolve_member_by_key(key)
     if not member:
         await update.message.reply_text(render_template("admin_user_not_found.txt"))
         return
@@ -166,7 +199,7 @@ async def handle_kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(render_template("id_required.txt"))
         return
     key = context.args[0]
-    member = db_get_member_by_id_or_username(key)
+    member = resolve_member_by_key(key)
     if not member:
         await update.message.reply_text(render_template("admin_user_not_found.txt"))
         return
@@ -184,6 +217,33 @@ async def handle_kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 @log_async_call
+async def handle_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text(render_template("not_authorized.txt"))
+        return
+    if not context.args:
+        await update.message.reply_text(render_template("id_required.txt"))
+        return
+    key = context.args[0]
+    member = resolve_member_by_key(key)
+    if not member:
+        await update.message.reply_text(render_template("admin_user_not_found.txt"))
+        return
+    summary = await _remove_member(context.bot, member)
+    total = len(summary["ok"]) + len(summary["errors"])
+    text = render_template(
+        "admin_remove_done.txt",
+        username=member.get("username"),
+        id=member["telegram_id"],
+        membership_id=member.get("membership_id"),
+        ok=len(summary["ok"]),
+        total=total,
+        errors=summary["errors"],
+    )
+    await update.message.reply_text(text)
+
+
+@log_async_call
 async def handle_export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
         await update.message.reply_text(render_template("not_authorized.txt"))
@@ -192,6 +252,7 @@ async def handle_export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     members = db_iter_members(scope)
     output = io.StringIO()
     fieldnames = [
+        "membership_id",
         "telegram_id",
         "username",
         "is_confirmed",
@@ -207,6 +268,7 @@ async def handle_export(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status, remaining, expires_at = _calc_status(m)
         writer.writerow(
             dict(
+                membership_id=m.get("membership_id"),
                 telegram_id=m.get("telegram_id"),
                 username=m.get("username"),
                 is_confirmed=m.get("is_confirmed"),
@@ -232,7 +294,7 @@ async def handle_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(render_template("id_required.txt"))
         return
     key = context.args[0]
-    member = db_get_member_by_id_or_username(key)
+    member = resolve_member_by_key(key)
     if not member:
         await update.message.reply_text(render_template("admin_user_not_found.txt"))
         return
@@ -247,11 +309,11 @@ async def handle_user_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer(render_template("not_authorized.txt"), show_alert=True)
         return
     parts = query.data.split(":")
-    if len(parts) != 2:
+    if len(parts) != 3 or parts[0] != "admin":
         await query.answer(render_template("unknown_action.txt"), show_alert=True)
         return
-    action, uid = parts
-    member = db_get_member_by_id_or_username(int(uid))
+    _, action, key = parts
+    member = resolve_member_by_key(key)
     if not member:
         await query.answer(render_template("admin_user_not_found.txt"), show_alert=True)
         return
@@ -261,6 +323,22 @@ async def handle_user_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await _unban_member(context.bot, member)
     elif action == "kick":
         await _kick_member(context.bot, member)
+    elif action == "remove":
+        summary = await _remove_member(context.bot, member)
+        total = len(summary["ok"]) + len(summary["errors"])
+        await query.message.edit_text(
+            render_template(
+                "admin_remove_done.txt",
+                username=member.get("username"),
+                id=member["telegram_id"],
+                membership_id=member.get("membership_id"),
+                ok=len(summary["ok"]),
+                total=total,
+                errors=summary["errors"],
+            )
+        )
+        await query.answer()
+        return
     text, keyboard = await _build_user_card(context.bot, member)
     await query.message.edit_text(text, reply_markup=keyboard)
     await query.answer()

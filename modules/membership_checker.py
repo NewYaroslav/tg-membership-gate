@@ -13,7 +13,9 @@ from modules.storage import (
     db_mark_warning_sent,
     db_mark_grace_notified,
     db_set_confirmation,
+    db_get_user_locale,
 )
+from modules.i18n import normalize_lang
 from modules.time_utils import humanize_period
 from modules.logging_config import logger
 
@@ -39,7 +41,8 @@ async def check_membership_expiry_loop(app):
             else:
                 expires_dt = expires_at
             remaining = int((expires_dt - now).total_seconds())
-            text = render_template(warning_template, remaining=humanize_period(remaining))
+            user_lang = normalize_lang(db_get_user_locale(member["telegram_id"]))
+            text = render_template(warning_template, remaining=humanize_period(remaining), lang=user_lang)
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton(p["label"], callback_data=f"renew:{member['membership_id']}:{p['id']}")]
                 for p in plans
@@ -56,7 +59,8 @@ async def check_membership_expiry_loop(app):
             else:
                 exp_dt = expires_at
             remaining = grace_after - int((now - exp_dt).total_seconds())
-            text = render_template(grace_template, remaining=humanize_period(remaining))
+            user_lang = normalize_lang(db_get_user_locale(member["telegram_id"]))
+            text = render_template(grace_template, remaining=humanize_period(remaining), lang=user_lang)
             try:
                 await app.bot.send_message(chat_id=member["telegram_id"], text=text)
                 db_mark_grace_notified(member["telegram_id"])
@@ -65,7 +69,8 @@ async def check_membership_expiry_loop(app):
 
         cutoff = now - timedelta(seconds=grace_after)
         for member in db_fetch_expired_members(cutoff):
-            text = render_template(expired_template)
+            user_lang = normalize_lang(db_get_user_locale(member["telegram_id"]))
+            text = render_template(expired_template, lang=user_lang)
             try:
                 await app.bot.send_message(chat_id=member["telegram_id"], text=text)
                 for chat_id in ACCESS_CHATS:

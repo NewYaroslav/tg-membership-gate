@@ -105,6 +105,11 @@ pictures are sent for the welcome and post-join messages.
 - Blocking the event loop with long DB operations.
 - Logging secrets or personal data.
 
+## FAQ
+
+- **How to find/delete by `membership_id`?** Use admin commands with the membership ID directly: `/ban ABC123`, `/user ABC123`.
+- **What does `/remove` do?** It kicks the user from all channels and deletes the database record. Use with caution.
+
 ## Code Style: Git Commit Convention
 Use [Conventional Commits](https://www.conventionalcommits.org/) with scopes referencing modules or docs.
 

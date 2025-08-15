@@ -1,8 +1,10 @@
-ID: {{ id }}
+Membership ID: {{ membership_id }}
+Telegram ID: {{ telegram_id }}
 Username: {{ username }}
-Подтверждён: {{ is_confirmed }}
-Забанен: {{ is_banned }}
-Статус: {{ status }}
-Истекает: {{ expires_at }}
-Осталось: {{ remaining }}
-В каналах: {{ in_channels }}
+Confirmed: {{ is_confirmed }}
+Banned: {{ is_banned }}
+Status: {{ status }}
+Expires at: {{ expires_at }}
+Remaining: {{ remaining }}
+In channels: {{ in_channels }}
+Language: {{ locale }}
