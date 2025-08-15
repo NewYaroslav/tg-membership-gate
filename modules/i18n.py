@@ -12,6 +12,25 @@ SUPPORTED = set(i18n.get("supported_langs", []))
 DEFAULT_LANG = i18n.get("default_lang", "en")
 
 
+def get_button_text(cfg_value, lang: str, fallback: str | None = None) -> str:
+    """Return localized button text from config value.
+
+    cfg_value can be either a plain string or a dict mapping language codes
+    to translations. Fallback order: requested lang -> DEFAULT_LANG -> "en" ->
+    provided fallback -> empty string.
+    """
+    if isinstance(cfg_value, dict):
+        return (
+            cfg_value.get(lang)
+            or cfg_value.get(DEFAULT_LANG)
+            or cfg_value.get("en")
+            or (fallback if fallback is not None else "")
+        )
+    if cfg_value:
+        return cfg_value
+    return fallback or ""
+
+
 def make_username(user, lang: str) -> str:
     first = getattr(user, "first_name", "") or ""
     last = getattr(user, "last_name", "") or ""
@@ -107,6 +126,4 @@ async def on_lang_pick(update, context):
     # На всякий случай fallback — отправить новое сообщение
     else:
         await msg.reply_text(text)
-        
-    if context.user_data.get("state") == UserState.WAITING_FOR_LANGUAGE:
-        await handle_start_command(update, context)
+    await handle_start_command(update, context)

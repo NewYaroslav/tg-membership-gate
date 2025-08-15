@@ -21,7 +21,13 @@ from modules.auth_utils import is_admin
 from modules.states import UserState
 from modules.template_engine import render_template
 from modules.media_utils import send_localized_image_with_text
-from modules.i18n import normalize_lang, resolve_user_lang, make_username
+from modules.i18n import (
+    normalize_lang,
+    resolve_user_lang,
+    make_username,
+    get_button_text,
+    DEFAULT_LANG,
+)
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
 from modules.time_utils import humanize_period
@@ -33,18 +39,23 @@ ACCESS_CHATS = [int(cid.strip()) for cid in os.getenv("ACCESS_CHATS", "").split(
 id_pattern = re.compile(id_config.get("pattern", ".+"))
 
 
-def build_admin_keyboard(membership_id: str) -> InlineKeyboardMarkup:
+def build_admin_keyboard(membership_id: str, lang: str = DEFAULT_LANG) -> InlineKeyboardMarkup:
     buttons: List[List[InlineKeyboardButton]] = []
     approve_seconds = admin_buttons.get("approve_durations", [])
     for sec in approve_seconds:
         period = humanize_period(int(sec))
-        text = admin_ui.get("approve_template", "Одобрить").format(period=period)
-        buttons.append([InlineKeyboardButton(text=text, callback_data=f"approve:{membership_id}:{sec}")])
+        tmpl = get_button_text(admin_ui.get("approve_template"), lang, "Approve")
+        text = tmpl.format(period=period)
+        buttons.append(
+            [InlineKeyboardButton(text=text, callback_data=f"approve:{membership_id}:{sec}")]
+        )
     row: List[InlineKeyboardButton] = []
     if admin_buttons.get("enable_decline", True):
-        row.append(InlineKeyboardButton(admin_ui.get("decline_text", "Отклонить"), callback_data=f"decline:{membership_id}"))
+        decline = get_button_text(admin_ui.get("decline_text"), lang, "Decline")
+        row.append(InlineKeyboardButton(decline, callback_data=f"decline:{membership_id}"))
     if admin_buttons.get("enable_ban", True):
-        row.append(InlineKeyboardButton(admin_ui.get("ban_text", "Забанить"), callback_data=f"ban:{membership_id}"))
+        ban = get_button_text(admin_ui.get("ban_text"), lang, "Ban")
+        row.append(InlineKeyboardButton(ban, callback_data=f"ban:{membership_id}"))
     if row:
         buttons.append(row)
     return InlineKeyboardMarkup(buttons)
@@ -121,8 +132,10 @@ async def handle_idle_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = _user_lang(update)
     username = make_username(update.effective_user, lang)
     text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
-    button_text = telegram_start.get("action_button_text", "Получить доступ")
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(text=button_text, callback_data="request_access")]])
+    button_text = get_button_text(telegram_start.get("action_button_text"), lang, "Get access")
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(text=button_text, callback_data="request_access")]]
+    )
     if telegram_start.get("enabled_image", True):
         await send_localized_image_with_text(
             bot=context.bot,
@@ -169,13 +182,24 @@ async def handle_renewal_selection(update: Update, context: ContextTypes.DEFAULT
         templates.get("renewal_requested_admin", "renewal_requested_admin.txt"),
         username=member.get("username"),
         membership_id=membership_id,
-        plan_label=plan.get("label"),
+        plan_label=get_button_text(plan.get("label"), DEFAULT_LANG),
         plan_period=period,
     )
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(text=f"Одобрить на {period}", callback_data=f"approve:{membership_id}:{seconds}")],
-        [InlineKeyboardButton(text=admin_ui.get("decline_text", "Отклонить"), callback_data=f"decline:{membership_id}")],
-    ])
+    approve_tmpl = get_button_text(
+        admin_ui.get("approve_template"), DEFAULT_LANG, "Approve for {period}"
+    )
+    decline_text = get_button_text(admin_ui.get("decline_text"), DEFAULT_LANG, "Decline")
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    text=approve_tmpl.format(period=period),
+                    callback_data=f"approve:{membership_id}:{seconds}",
+                )
+            ],
+            [InlineKeyboardButton(text=decline_text, callback_data=f"decline:{membership_id}")],
+        ]
+    )
     try:
         await context.bot.send_message(chat_id=ROOT_ADMIN_ID, text=admin_text, reply_markup=keyboard)
     except Exception as e:

@@ -15,7 +15,7 @@ from modules.storage import (
     db_set_confirmation,
     db_get_user_locale,
 )
-from modules.i18n import normalize_lang
+from modules.i18n import normalize_lang, get_button_text
 from modules.time_utils import humanize_period
 from modules.logging_config import logger
 
@@ -43,10 +43,17 @@ async def check_membership_expiry_loop(app):
             remaining = int((expires_dt - now).total_seconds())
             user_lang = normalize_lang(db_get_user_locale(member["telegram_id"]))
             text = render_template(warning_template, remaining=humanize_period(remaining), lang=user_lang)
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(p["label"], callback_data=f"renew:{member['membership_id']}:{p['id']}")]
-                for p in plans
-            ])
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            get_button_text(p.get("label"), user_lang),
+                            callback_data=f"renew:{member['membership_id']}:{p['id']}",
+                        )
+                    ]
+                    for p in plans
+                ]
+            )
             try:
                 await app.bot.send_message(chat_id=member["telegram_id"], text=text, reply_markup=keyboard)
                 db_mark_warning_sent(member["telegram_id"])

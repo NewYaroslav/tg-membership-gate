@@ -9,7 +9,12 @@ from modules.config import telegram_start, start_language_prompt, i18n as i18n_c
 from modules.auth_utils import is_admin
 from modules.log_utils import log_async_call
 from modules.inactivity import clear_user_activity
-from modules.i18n import resolve_user_lang, send_language_prompt, make_username
+from modules.i18n import (
+    resolve_user_lang,
+    send_language_prompt,
+    make_username,
+    get_button_text,
+)
 from modules.storage import db_get_user_locale
 from modules.media_utils import send_localized_image_with_text
 
@@ -32,8 +37,10 @@ async def handle_start_command(update: Update, context: ContextTypes.DEFAULT_TYP
     lang = resolve_user_lang(update, user_row)
     username = make_username(user, lang)
     text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
-    button_text = telegram_start.get("action_button_text", "Получить доступ")
-    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(text=button_text, callback_data="request_access")]])
+    button_text = get_button_text(telegram_start.get("action_button_text"), lang, "Get access")
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(text=button_text, callback_data="request_access")]]
+    )
     context.user_data["state"] = UserState.WAITING_FOR_REQUEST_BUTTON
     if telegram_start.get("enabled_image", True):
         await send_localized_image_with_text(

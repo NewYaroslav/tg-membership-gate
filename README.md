@@ -89,7 +89,9 @@
    ```yaml
    start:
      template: start_user.txt
-     action_button_text: "Получить доступ"
+    action_button_text:
+      en: "Get access"
+      ru: "Получить доступ"
      enabled_image: true
      image:
        en: { path: assets/en/start.jpg }
@@ -103,10 +105,25 @@
      granted: access_granted.txt
      denied: access_denied.txt
 
-   admin_interface:
-     approve_template: "Разрешить на {period}"
-     decline_text: "Отклонить"
-     ban_text: "Забанить"
+  admin_interface:
+    approve_template:
+      en: "Approve for {period}"
+      ru: "Разрешить на {period}"
+    decline_text:
+      en: "Decline"
+      ru: "Отклонить"
+    ban_text:
+      en: "Ban"
+      ru: "Забанить"
+    unban_text:
+      en: "Unban"
+      ru: "Разбанить"
+    kick_text:
+      en: "Kick"
+      ru: "Кикнуть"
+    remove_text:
+      en: "Remove"
+      ru: "Удалить"
 
    language_prompt:
      enabled_image: false
