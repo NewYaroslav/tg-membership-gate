@@ -4,18 +4,29 @@ from telegram.ext import ContextTypes
 
 from modules.template_engine import render_template
 from modules.config import session_timeout, templates
-from modules.storage import db_get_user_locale
+from modules.storage import db_get_user_locale, db_get_member_by_telegram
 from modules.i18n import normalize_lang
 from modules.states import UserState
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
+from modules.auth_utils import is_admin
 
 
 user_last_activity: dict[int, datetime] = {}
 
 
 def update_user_activity(user) -> None:
-    user_last_activity[user.id] = datetime.utcnow()
+    if not user:
+        return
+    uid = user.id
+    if is_admin(uid):
+        user_last_activity.pop(uid, None)
+        return
+    member = db_get_member_by_telegram(uid)
+    if member and member.get("is_confirmed"):
+        user_last_activity.pop(uid, None)
+        return
+    user_last_activity[uid] = datetime.utcnow()
 
 
 def clear_user_activity(user_id: int) -> None:
