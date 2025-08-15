@@ -21,11 +21,17 @@ renewal:
   grace_after_expiry_sec: 86400
   user_plans:
     - id: trial_3d
-      label: "Подписаться на пробный период"
+      label:
+        en: "Subscribe for trial period"
+        ru: "Подписаться на пробный период"
       duration_sec: 259200
     - id: month_30
-      label: "Купить подписку на 30 дней"
+      label:
+        en: "Buy 30-day subscription"
+        ru: "Купить подписку на 30 дней"
       duration_sec: 2592000
     - id: lifetime
-      label: "Купить бессрочную подписку"
+      label:
+        en: "Buy lifetime subscription"
+        ru: "Купить бессрочную подписку"
       duration_sec: 0

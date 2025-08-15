@@ -9,6 +9,7 @@ from telegram.ext import ContextTypes
 
 from modules.auth_utils import is_admin
 from modules.template_engine import render_template
+from modules.config import admin_ui
 from modules.storage import (
     db_get_member_by_membership_id,
     db_get_member_by_telegram,
@@ -28,6 +29,7 @@ from modules.access_control import (
 )
 from modules.time_utils import humanize_period
 from modules.log_utils import log_async_call
+from modules.i18n import get_button_text, DEFAULT_LANG
 
 
 def resolve_member_by_key(key: str | int) -> dict | None:
@@ -127,14 +129,28 @@ async def _build_user_card(bot, member: dict):
         in_channels=in_channels,
         locale=user_locale,
     )
-    keyboard = InlineKeyboardMarkup([
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton("Ban", callback_data=f"admin:ban:{member['membership_id']}") ,
-            InlineKeyboardButton("Unban", callback_data=f"admin:unban:{member['membership_id']}") ,
-            InlineKeyboardButton("Kick", callback_data=f"admin:kick:{member['membership_id']}") ,
-            InlineKeyboardButton("Remove", callback_data=f"admin:remove:{member['membership_id']}") ,
+            [
+                InlineKeyboardButton(
+                    get_button_text(admin_ui.get("ban_text"), DEFAULT_LANG, "Ban"),
+                    callback_data=f"admin:ban:{member['membership_id']}",
+                ),
+                InlineKeyboardButton(
+                    get_button_text(admin_ui.get("unban_text"), DEFAULT_LANG, "Unban"),
+                    callback_data=f"admin:unban:{member['membership_id']}",
+                ),
+                InlineKeyboardButton(
+                    get_button_text(admin_ui.get("kick_text"), DEFAULT_LANG, "Kick"),
+                    callback_data=f"admin:kick:{member['membership_id']}",
+                ),
+                InlineKeyboardButton(
+                    get_button_text(admin_ui.get("remove_text"), DEFAULT_LANG, "Remove"),
+                    callback_data=f"admin:remove:{member['membership_id']}",
+                ),
+            ]
         ]
-    ])
+    )
     return text, keyboard
 
 
