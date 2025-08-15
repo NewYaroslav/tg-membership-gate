@@ -65,3 +65,6 @@ post_join:
   image:
     en: { path: assets/en/final.jpg }
     ru: { path: assets/ru/final.jpg }
+
+behavior:
+  suppress_service_messages: true

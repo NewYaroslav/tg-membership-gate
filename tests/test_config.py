@@ -16,6 +16,7 @@ from modules.config import (
     language_prompt,
     start_language_prompt,
     post_join,
+    behavior,
 )
 
 
@@ -34,3 +35,4 @@ def test_config_loaded():
     assert "template" in start_language_prompt
     assert "template" in post_join
     assert "enabled_image" in post_join
+    assert "suppress_service_messages" in behavior
