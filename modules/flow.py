@@ -14,6 +14,7 @@ from modules.config import (
     admin_buttons,
     admin_ui,
     renewal,
+    ask_id_prompt,
     invalid_id_prompt,
 )
 from modules.storage import (
@@ -78,8 +79,23 @@ def _user_lang(update: Update) -> str:
 async def handle_request_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["state"] = UserState.WAITING_FOR_ID
     lang = _user_lang(update)
-    text = render_template(templates.get("ask_id", "ask_id.txt"), lang=lang)
-    await update.callback_query.message.reply_text(text)
+    username = make_username(update.effective_user, lang)
+    text = render_template(
+        ask_id_prompt.get("template", "ask_id.txt"),
+        lang=lang,
+        username=username,
+    )
+    if ask_id_prompt.get("enabled_image"):
+        await send_localized_image_with_text(
+            bot=context.bot,
+            chat_id=update.effective_chat.id,
+            asset_key="ask_id.image",
+            cfg_section=ask_id_prompt,
+            lang=lang,
+            text=text,
+        )
+    else:
+        await update.callback_query.message.reply_text(text, parse_mode="HTML")
 
 
 @log_async_call

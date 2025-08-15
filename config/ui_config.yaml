@@ -59,6 +59,13 @@ start_language_prompt:
     en: { path: assets/en/language.jpg }
     ru: { path: assets/ru/language.jpg }
 
+ask_id_prompt:
+  enabled_image: true
+  template: ask_id.txt
+  image:
+    en: { path: assets/en/id_example.jpg }
+    ru: { path: assets/ru/id_example.jpg }
+
 invalid_id_prompt:
   enabled_image: true
   template: id_invalid.txt

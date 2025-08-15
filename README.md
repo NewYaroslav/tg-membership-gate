@@ -80,8 +80,9 @@
     `renewal_requested_admin`, `links_unavailable`, `session_timeout`.
    - `admin_interface` – подписи для кнопок администратора. Шаблон
      `approve_template` принимает `{period}`.
-   - `language_prompt` – шаблон и картинка для смены языка через `/language`.
+  - `language_prompt` – шаблон и картинка для смены языка через `/language`.
   - `start_language_prompt` – шаблон и картинка для первичного выбора языка на `/start`.
+  - `ask_id_prompt` – запрос ID с опциональной картинкой.
   - `invalid_id_prompt` – уведомление о некорректном ID с опциональной картинкой.
   - `post_join` – сообщение после вступления в чат: шаблон, опциональная
     картинка и флаг `enabled`.
@@ -134,6 +135,10 @@
    start_language_prompt:
      enabled_image: false
      template: start_language_prompt.txt
+
+   ask_id_prompt:
+     enabled_image: false
+     template: ask_id.txt
 
    invalid_id_prompt:
      enabled_image: false
