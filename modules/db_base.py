@@ -87,6 +87,15 @@ class DatabaseAdapter(ABC):
     def mark_warning_sent(self, telegram_id: int) -> None:
         """Mark that expiration warning was sent to member."""
 
+    # -- Post-join helpers -------------------------------------------------
+    @abstractmethod
+    def was_post_join_sent(self, member_id: int) -> bool:
+        """Return True if post-join message was already sent."""
+
+    @abstractmethod
+    def mark_post_join_sent(self, member_id: int) -> None:
+        """Mark that post-join message has been sent."""
+
     # -- Join request links ----------------------------------------------
     @abstractmethod
     def get_join_link(self, chat_id: int) -> Optional[dict[str, Any]]:

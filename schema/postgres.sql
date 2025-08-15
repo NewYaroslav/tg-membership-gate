@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS members (
     expires_at TIMESTAMP,
     warn_sent_at TIMESTAMP,
     grace_notified_at TIMESTAMP,
+    post_join_sent_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

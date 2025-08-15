@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
-from modules.config import telegram_start, templates, id_config, admin_buttons, admin_ui, renewal, post_join
+from modules.config import telegram_start, templates, id_config, admin_buttons, admin_ui, renewal
 from modules.storage import (
     db_get_member_by_telegram,
     db_get_member_by_id,
@@ -230,23 +230,6 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
             else:
                 text = render_template(templates.get("links_unavailable", "links_unavailable.txt"), lang=user_lang)
             await context.bot.send_message(chat_id=user_id, text=text, disable_web_page_preview=True)
-            if post_join.get("enabled"):
-                post_text = render_template(post_join.get("template", "post_join.txt"), lang=user_lang)
-                if post_join.get("enabled_image", True):
-                    await send_localized_image_with_text(
-                        bot=context.bot,
-                        chat_id=user_id,
-                        asset_key="post_join.image",
-                        cfg_section=post_join,
-                        lang=user_lang,
-                        text=post_text,
-                    )
-                else:
-                    await context.bot.send_message(
-                        chat_id=user_id,
-                        text=post_text,
-                        parse_mode="HTML",
-                    )
         await query.edit_message_text(render_template("admin_approved.txt", membership_id=membership_id))
     elif action == "decline":
         db_set_confirmation(membership_id, False, None)

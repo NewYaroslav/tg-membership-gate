@@ -9,12 +9,13 @@ from telegram.ext import (
     MessageHandler,
     CallbackQueryHandler,
     ChatJoinRequestHandler,
+    ChatMemberHandler,
     filters,
 )
 from rich.console import Console
 
 from modules.routing import route_message, handle_inline_button
-from modules.join_approver import on_join_request
+from modules.join_approver import on_join_request, on_chat_member
 from modules.common import handle_start_command, handle_help_command
 from modules.i18n import cmd_language, on_lang_pick
 from modules.admin_commands import (
@@ -86,6 +87,7 @@ def run_telegram_bot():
     app.add_handler(CallbackQueryHandler(on_lang_pick, pattern=r"^lang:"))
     app.add_handler(CallbackQueryHandler(handle_inline_button))
     app.add_handler(ChatJoinRequestHandler(on_join_request))
+    app.add_handler(ChatMemberHandler(on_chat_member, ChatMemberHandler.CHAT_MEMBER))
 
     console.print("[bold green]Telegram bot is running[/bold green]")
     logger.info("Telegram bot is now polling for messages")
