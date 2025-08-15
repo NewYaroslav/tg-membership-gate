@@ -102,6 +102,16 @@ def db_mark_warning_sent(telegram_id: int) -> None:
 
 
 @log_sync_call
+def db_was_post_join_sent(member_id: int) -> bool:
+    return get_db().was_post_join_sent(member_id)
+
+
+@log_sync_call
+def db_mark_post_join_sent(member_id: int) -> None:
+    get_db().mark_post_join_sent(member_id)
+
+
+@log_sync_call
 def db_get_join_link(chat_id: int):
     return get_db().get_join_link(chat_id)
 

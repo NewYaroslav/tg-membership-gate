@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS members (
     expires_at INTEGER,
     warn_sent_at TEXT,
     grace_notified_at TEXT,
+    post_join_sent_at TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (telegram_id) REFERENCES users(telegram_id)

@@ -16,6 +16,10 @@ def test_member_flow(tmp_path):
     member = db.get_member_by_membership_id("123")
     assert member["telegram_id"] == 111
     assert member["username"] == "user"
+    member_id = member["id"]
+    assert not db.was_post_join_sent(member_id)
+    db.mark_post_join_sent(member_id)
+    assert db.was_post_join_sent(member_id)
     db.set_confirmation("123", True, datetime.utcnow() + timedelta(seconds=10))
     member = db.get_member_by_membership_id("123")
     assert member["is_confirmed"] == 1

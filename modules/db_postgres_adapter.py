@@ -190,7 +190,7 @@ class PostgresAdapter(DatabaseAdapter):
 
     def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
         self._run(
-            "UPDATE members SET is_confirmed=%s, expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL WHERE membership_id=%s",
+            "UPDATE members SET is_confirmed=%s, expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL, post_join_sent_at=NULL WHERE membership_id=%s",
             [is_confirmed, expires_at, membership_id],
         )
 
@@ -234,7 +234,7 @@ class PostgresAdapter(DatabaseAdapter):
         self, member_id: int, confirmed: bool, expires_at: datetime | None = None
     ) -> None:
         self._run(
-            "UPDATE members SET is_confirmed=%s, expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL WHERE telegram_id=%s",
+            "UPDATE members SET is_confirmed=%s, expires_at=%s, warn_sent_at=NULL, grace_notified_at=NULL, post_join_sent_at=NULL WHERE telegram_id=%s",
             [confirmed, expires_at, member_id],
         )
 
@@ -345,6 +345,18 @@ class PostgresAdapter(DatabaseAdapter):
 
     def mark_warning_sent(self, telegram_id: int) -> None:
         self._run("UPDATE members SET warn_sent_at=NOW() WHERE telegram_id=%s", [telegram_id])
+
+    # Post-join helpers -------------------------------------------------
+    def was_post_join_sent(self, member_id: int) -> bool:
+        row = self._run(
+            "SELECT post_join_sent_at FROM members WHERE id=%s",
+            [member_id],
+            fetchone=True,
+        )
+        return bool(row and row["post_join_sent_at"])
+
+    def mark_post_join_sent(self, member_id: int) -> None:
+        self._run("UPDATE members SET post_join_sent_at=NOW() WHERE id=%s", [member_id])
 
     # Join links -------------------------------------------------------
     def get_join_link(self, chat_id: int) -> Optional[dict[str, Any]]:
