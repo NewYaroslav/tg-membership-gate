@@ -44,10 +44,131 @@
 
 
 3. **Конфигурация (`config/`)**
-   - `ui_config.yaml` – шаблоны сообщений, тексты кнопок.
-   - `membership.yaml` – правила работы с ID, настройки админ‑кнопок,
-     параметры истечения доступа и таймаута сессии.
-   - `i18n.yaml` – поддерживаемые языки и подписи для переключателя языка.
+   Все параметры бота вынесены в три YAML‑файла:
+
+   **`ui_config.yaml` — интерфейс и шаблоны**
+   - `start` – параметры стартового сообщения: файл шаблона, текст кнопки,
+     флаг `enabled_image` и набор картинок по языкам.
+   - `messages` – соответствие событий имени шаблона: `ask_id`, `waiting`,
+     `banned`, `not_found`, `granted`, `denied`, `warning`, `expired`,
+     `admin_request`, `renewal_warning`, `grace_warning`,
+     `renewal_requested_admin`, `links_unavailable`.
+   - `admin_interface` – подписи для кнопок администратора. Шаблон
+     `approve_template` принимает `{period}`.
+   - `language_prompt` – шаблон и картинка для выбора языка (`/language`).
+   - `post_join` – сообщение после вступления в чат: шаблон, опциональная
+     картинка и флаг `enabled`.
+
+   Пример `ui_config.yaml`:
+   ```yaml
+   start:
+     template: start_user.txt
+     action_button_text: "Получить доступ"
+     enabled_image: true
+     image:
+       en: { path: assets/en/start.jpg }
+       ru: { path: assets/ru/start.jpg }
+
+   messages:
+     ask_id: ask_id.txt
+     waiting: id_waiting.txt
+     banned: id_banned.txt
+     not_found: id_not_found.txt
+     granted: access_granted.txt
+     denied: access_denied.txt
+
+   admin_interface:
+     approve_template: "Разрешить на {period}"
+     decline_text: "Отклонить"
+     ban_text: "Забанить"
+
+   language_prompt:
+     enabled_image: false
+     template: start_language_prompt.txt
+
+   post_join:
+     enabled: true
+     enabled_image: true
+     template: post_join.txt
+     image:
+       en: { path: assets/en/final.jpg }
+       ru: { path: assets/ru/final.jpg }
+   ```
+
+   **`membership.yaml` — правила доступа**
+   - `id.pattern` – регулярное выражение для проверки введённого ID.
+   - `admin.approve_durations` – список длительностей выдачи доступа в секундах
+     (0 — бессрочно). Также можно отключить кнопки `decline` и `ban`.
+   - `expiration.check_interval` и `warn_before_sec` – период проверки и
+     заблаговременное предупреждение об окончании доступа.
+   - `session_timeout.seconds` – время неактивности для сброса диалога;
+     `send_message` включает отправку стартового сообщения при сбросе.
+   - `renewal` – логика продления доступа: время предупреждения,
+     длительность «grace period» и список тарифов `user_plans` (id/label/
+     duration_sec).
+
+   Пример `membership.yaml`:
+   ```yaml
+   id:
+     pattern: "^[A-Z0-9]{4,10}$"
+
+   admin:
+     approve_durations:
+       - 0        # бессрочно
+       - 2592000 # 30 дней
+       - 15552000 # 180 дней
+     enable_decline: true
+     enable_ban: true
+
+   expiration:
+     check_interval: 60
+     warn_before_sec: 86400
+
+   session_timeout:
+     seconds: 900
+     send_message: true
+
+   renewal:
+     warn_before_sec: 86400
+     grace_after_expiry_sec: 86400
+     user_plans:
+       - id: trial_3d
+         label: "Подписаться на пробный период"
+         duration_sec: 259200
+       - id: month_30
+         label: "Купить подписку на 30 дней"
+         duration_sec: 2592000
+       - id: lifetime
+         label: "Купить бессрочную подписку"
+         duration_sec: 0
+   ```
+
+   **`i18n.yaml` — языковые настройки**
+   - `i18n.enabled_start_prompt` – если `true`, бот стартует на языке по
+     умолчанию и предлагает выбрать язык командой `/language`.
+   - `i18n.default_lang` и `supported_langs` – язык по умолчанию и список
+     поддерживаемых языков.
+   - `i18n_buttons` – подписи кнопок выбора языка (`language_choices`).
+
+   Пример `i18n.yaml`:
+   ```yaml
+   i18n:
+     enabled_start_prompt: true
+     default_lang: en
+     supported_langs: [en, ru]
+
+   i18n_buttons:
+     en:
+       choose_language_title: "Choose your language"
+       language_choices:
+         en: "English"
+         ru: "Русский"
+     ru:
+       choose_language_title: "Выберите язык"
+       language_choices:
+         en: "English"
+         ru: "Русский"
+   ```
 
 4. **Запуск**
    ```bash
