@@ -1,7 +1,7 @@
-Команды администратора:
-/ban <ID> — заблокировать пользователя
-/unban <ID> — снять бан
-/kick <ID> — удалить из каналов
-/remove <ID> — синоним /kick
-/export_users [all|confirmed|unconfirmed|banned] — экспорт списка пользователей
-/user <ID> — показать сведения о пользователе
+Admin commands:
+/ban <ID> — ban a user
+/unban <ID> — unban a user
+/kick <ID> — remove from channels
+/remove <ID> — alias of /kick
+/export_users [all|confirmed|unconfirmed|banned] — export user list
+/user <ID> — show user info

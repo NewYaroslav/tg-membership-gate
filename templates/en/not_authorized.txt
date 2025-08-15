@@ -1,1 +1,1 @@
-Недостаточно прав.
+Insufficient permissions.

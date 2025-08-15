@@ -1,1 +1,1 @@
-Пользователь {{ username }} ({{ id }}) удалён из каналов: {{ ok }}/{{ total }}{% if errors %}. Ошибки: {{ errors }}{% endif %}
+User {{ username }} ({{ id }}) removed from channels: {{ ok }}/{{ total }}{% if errors %}. Errors: {{ errors }}{% endif %}

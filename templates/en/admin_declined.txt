@@ -1,1 +1,1 @@
-ID {{ membership_id }} отклонён.
+ID {{ membership_id }} declined.

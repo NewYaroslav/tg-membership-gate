@@ -1,2 +1,2 @@
-Запрос на доступ:
-ID {{ membership_id }} от пользователя {{ telegram_id }}
+Access request:
+ID {{ membership_id }} from user {{ telegram_id }}

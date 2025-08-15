@@ -1,1 +1,1 @@
-ID {{ membership_id }} заблокирован.
+ID {{ membership_id }} has been banned.

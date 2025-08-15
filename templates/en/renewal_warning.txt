@@ -1,1 +1,1 @@
-Ваша подписка истекает через {remaining}. Выберите вариант продления ниже.
+Your subscription expires in {remaining}. Choose a renewal option below.

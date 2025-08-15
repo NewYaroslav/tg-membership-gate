@@ -1,1 +1,1 @@
-Пользователь {{ username }} ({{ id }}) разбанен. Сняты ограничения в каналах: {{ ok }}/{{ total }}{% if errors %}. Ошибки: {{ errors }}{% endif %}
+User {{ username }} ({{ id }}) unbanned. Restrictions lifted in channels: {{ ok }}/{{ total }}{% if errors %}. Errors: {{ errors }}{% endif %}
