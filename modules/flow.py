@@ -41,6 +41,7 @@ from modules.log_utils import log_async_call
 from modules.logging_config import logger
 from modules.time_utils import humanize_period
 from modules.join_links import ensure_join_request_link
+from modules.inactivity import clear_user_activity
 
 load_dotenv()
 ACCESS_CHATS = [int(cid.strip()) for cid in os.getenv("ACCESS_CHATS", "").split(",") if cid.strip()]
@@ -167,6 +168,7 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(chat_id=ROOT_ADMIN_ID, text=admin_text, reply_markup=keyboard)
     except Exception as e:
         logger.exception("Failed to notify admin: %s", e)
+    clear_user_activity(ROOT_ADMIN_ID)
 
     if member:
         template = templates.get("waiting", "id_waiting.txt")
@@ -256,6 +258,7 @@ async def handle_renewal_selection(update: Update, context: ContextTypes.DEFAULT
         await context.bot.send_message(chat_id=ROOT_ADMIN_ID, text=admin_text, reply_markup=keyboard)
     except Exception as e:
         logger.exception("Failed to notify admin about renewal: %s", e)
+    clear_user_activity(ROOT_ADMIN_ID)
     lang = _user_lang(update)
     await query.message.reply_text(render_template(templates.get("waiting", "id_waiting.txt"), lang=lang))
 
@@ -305,6 +308,7 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
             else:
                 text = render_template(templates.get("links_unavailable", "links_unavailable.txt"), lang=user_lang)
             await context.bot.send_message(chat_id=user_id, text=text, disable_web_page_preview=True)
+            clear_user_activity(user_id)
         await query.edit_message_text(render_template("admin_approved.txt", membership_id=membership_id))
     elif action == "decline":
         db_set_confirmation(membership_id, False, None)
@@ -312,6 +316,7 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
             user_lang = normalize_lang(db_get_user_locale(user_id))
             text = render_template(templates.get("denied", "access_denied.txt"), lang=user_lang)
             await context.bot.send_message(chat_id=user_id, text=text)
+            clear_user_activity(user_id)
         await query.edit_message_text(render_template("admin_declined.txt", membership_id=membership_id))
     elif action == "ban":
         db_set_ban(membership_id, True)
@@ -319,6 +324,7 @@ async def handle_admin_decision(update: Update, context: ContextTypes.DEFAULT_TY
             user_lang = normalize_lang(db_get_user_locale(user_id))
             text = render_template(templates.get("banned", "id_banned.txt"), membership_id=membership_id, lang=user_lang)
             await context.bot.send_message(chat_id=user_id, text=text)
+            clear_user_activity(user_id)
         await query.edit_message_text(render_template("admin_banned.txt", membership_id=membership_id))
     else:
         await query.answer(render_template("unknown_action.txt"))
