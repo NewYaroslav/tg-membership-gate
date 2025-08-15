@@ -6,6 +6,7 @@ from modules.config import i18n, i18n_buttons, language_prompt
 from modules.storage import db_set_user_locale
 from modules.log_utils import log_async_call
 from modules.media_utils import send_localized_image_with_text
+from modules.states import UserState
 
 SUPPORTED = set(i18n.get("supported_langs", []))
 DEFAULT_LANG = i18n.get("default_lang", "en")
@@ -34,28 +35,24 @@ def plural_days(n: int, lang: str) -> str:
             return "дня"
         return "дней"
     return "day" if n == 1 else "days"
-
-
-@log_async_call
-async def cmd_language(update, context):
+\n\nasync def send_language_prompt(update, context, cfg, *, asset_prefix: str, default_template: str):
     from modules.template_engine import render_template
+
     lang_ui = normalize_lang(getattr(update.effective_user, "language_code", None))
-    buttons = []
     lang_cfg = i18n_buttons.get(lang_ui, i18n_buttons.get(DEFAULT_LANG, {}))
     titles = lang_cfg.get("language_choices", {})
     row = [
         InlineKeyboardButton(titles.get(code, code), callback_data=f"lang:{code}")
         for code in i18n.get("supported_langs", [])
     ]
-    buttons.append(row)
-    kb = InlineKeyboardMarkup(buttons)
-    text = render_template(language_prompt.get("template", "start_language_prompt.txt"), lang=lang_ui)
-    if language_prompt.get("enabled_image"):
+    kb = InlineKeyboardMarkup([row])
+    text = render_template(cfg.get("template", default_template), lang=lang_ui)
+    if cfg.get("enabled_image"):
         await send_localized_image_with_text(
             bot=context.bot,
             chat_id=update.effective_chat.id,
-            asset_key="language_prompt.image",
-            cfg_section=language_prompt,
+            asset_key=f"{asset_prefix}.image",
+            cfg_section=cfg,
             lang=lang_ui,
             text=text,
             reply_markup=kb,
@@ -65,11 +62,26 @@ async def cmd_language(update, context):
 
 
 @log_async_call
+async def cmd_language(update, context):
+    await send_language_prompt(
+        update,
+        context,
+        language_prompt,
+        asset_prefix="language_prompt",
+        default_template="language_prompt.txt",
+    )
+
+
+@log_async_call
 async def on_lang_pick(update, context):
     from modules.template_engine import render_template
+    from modules.common import handle_start_command
+
     q = update.callback_query
     code = q.data.split(":", 1)[1]
     db_set_user_locale(update.effective_user.id, code)
     await q.answer()
     text = render_template("language_set.txt", lang=code)
     await q.edit_message_text(text)
+    if context.user_data.get("state") == UserState.WAITING_FOR_LANGUAGE:
+        await handle_start_command(update, context)

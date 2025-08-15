@@ -55,7 +55,8 @@
      `renewal_requested_admin`, `links_unavailable`.
    - `admin_interface` – подписи для кнопок администратора. Шаблон
      `approve_template` принимает `{period}`.
-   - `language_prompt` – шаблон и картинка для выбора языка (`/language`).
+   - `language_prompt` – шаблон и картинка для смены языка через `/language`.
+   - `start_language_prompt` – шаблон и картинка для первичного выбора языка на `/start`.
    - `post_join` – сообщение после вступления в чат: шаблон, опциональная
      картинка и флаг `enabled`.
 
@@ -83,6 +84,10 @@
      ban_text: "Забанить"
 
    language_prompt:
+     enabled_image: false
+     template: language_prompt.txt
+
+   start_language_prompt:
      enabled_image: false
      template: start_language_prompt.txt
 
@@ -177,11 +182,11 @@
 
 ## 🌐 Localized images
 
- - Сложите картинки по языкам: `assets/<lang>/start.jpg`, `assets/<lang>/post_join.jpg` и, при необходимости, `assets/<lang>/language_prompt.jpg`.
-- В `config/ui_config.yaml` укажите пути или `file_id` для секций `start`,
-  `language_prompt` и `post_join`.
-- Переключайте отправку картинок через `enabled_image` (`start` и
-  `post_join` включены по умолчанию, `language_prompt` — отключён).
+ - Сложите картинки по языкам: `assets/<lang>/start.jpg`, `assets/<lang>/post_join.jpg` и, при необходимости, `assets/<lang>/language_prompt.jpg` и `assets/<lang>/start_language_prompt.jpg`.
+ - В `config/ui_config.yaml` укажите пути или `file_id` для секций `start`,
+   `language_prompt`, `start_language_prompt` и `post_join`.
+ - Переключайте отправку картинок через `enabled_image` (`start` и
+   `post_join` включены по умолчанию, `language_prompt` и `start_language_prompt` — отключены).
 - Бот кеширует `file_id` в таблице `media_cache` и переиспользует его.
   При замене файла хеш (`sha256`) меняется — изображение переотправится и
   кеш обновится автоматически.
