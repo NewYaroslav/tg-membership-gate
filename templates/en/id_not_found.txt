@@ -1,1 +1,1 @@
-ID {{ membership_id }} not found. Request sent to an administrator.
+ID <code>{{ membership_id }}</code> not found. Request sent to an administrator.

@@ -17,6 +17,7 @@ language_prompt = _ui.get("language_prompt", {})
 start_language_prompt = _ui.get("start_language_prompt", {})
 post_join = _ui.get("post_join", {})
 behavior = _ui.get("behavior", {})
+invalid_id_prompt = _ui.get("invalid_id_prompt", {})
 
 # Membership rules
 id_config = _mb.get("id", {})

@@ -11,11 +11,13 @@ from modules.flow import (
     handle_renewal_selection,
 )
 from modules.log_utils import log_async_call
+from modules.inactivity import update_user_activity
 from modules.logging_config import logger
 
 
 @log_async_call
 async def route_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    update_user_activity(update.effective_user)
     state = context.user_data.get("state")
     if state is None:
         context.user_data["state"] = UserState.IDLE
@@ -31,6 +33,7 @@ async def route_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @log_async_call
 async def handle_inline_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    update_user_activity(update.effective_user)
     query = update.callback_query
     await query.answer()
     state = context.user_data.get("state")

@@ -23,6 +23,7 @@ messages:
   grace_warning: grace_warning.txt
   renewal_requested_admin: renewal_requested_admin.txt
   links_unavailable: links_unavailable.txt
+  session_timeout: session_timeout.txt
 
 admin_interface:
   approve_template:
@@ -57,6 +58,13 @@ start_language_prompt:
   image:
     en: { path: assets/en/language.jpg }
     ru: { path: assets/ru/language.jpg }
+
+invalid_id_prompt:
+  enabled_image: false
+  template: id_invalid.txt
+  image:
+    en: { path: assets/en/id_example.jpg }
+    ru: { path: assets/ru/id_example.jpg }
 
 post_join:
   enabled: true

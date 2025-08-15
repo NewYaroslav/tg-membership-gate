@@ -7,7 +7,15 @@ from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
-from modules.config import telegram_start, templates, id_config, admin_buttons, admin_ui, renewal
+from modules.config import (
+    telegram_start,
+    templates,
+    id_config,
+    admin_buttons,
+    admin_ui,
+    renewal,
+    invalid_id_prompt,
+)
 from modules.storage import (
     db_get_member_by_telegram,
     db_get_member_by_id,
@@ -81,8 +89,21 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
     lang = _user_lang(update)
 
     if not id_pattern.fullmatch(raw_id):
-        text = render_template(templates.get("not_found", "id_not_found.txt"), membership_id=raw_id, lang=lang)
-        await update.message.reply_text(text)
+        text = render_template(
+            invalid_id_prompt.get("template", "id_invalid.txt"),
+            lang=lang,
+        )
+        if invalid_id_prompt.get("enabled_image"):
+            await send_localized_image_with_text(
+                bot=context.bot,
+                chat_id=update.effective_chat.id,
+                asset_key="invalid_id.image",
+                cfg_section=invalid_id_prompt,
+                lang=lang,
+                text=text,
+            )
+        else:
+            await update.message.reply_text(text, parse_mode="HTML")
         context.user_data["state"] = UserState.WAITING_FOR_ID
         return
 
@@ -90,8 +111,12 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
     db_upsert_member(raw_id, user.id, user.username, user.full_name, member.get("is_confirmed") if member else False)
 
     if member and member.get("is_banned"):
-        text = render_template(templates.get("banned", "id_banned.txt"), membership_id=raw_id, lang=lang)
-        await update.message.reply_text(text)
+        text = render_template(
+            templates.get("banned", "id_banned.txt"),
+            membership_id=raw_id,
+            lang=lang,
+        )
+        await update.message.reply_text(text, parse_mode="HTML")
         context.user_data["state"] = UserState.IDLE
         return
 
@@ -103,10 +128,19 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
             except Exception as e:
                 logger.warning("link fail %s: %s", chat_id, e)
         if links:
-            text = render_template(templates.get("granted", "access_granted.txt"), links=links, lang=lang)
+            text = render_template(
+                templates.get("granted", "access_granted.txt"),
+                links=links,
+                lang=lang,
+            )
         else:
-            text = render_template(templates.get("links_unavailable", "links_unavailable.txt"), lang=lang)
-        await update.message.reply_text(text, disable_web_page_preview=True)
+            text = render_template(
+                templates.get("links_unavailable", "links_unavailable.txt"),
+                lang=lang,
+            )
+        await update.message.reply_text(
+            text, disable_web_page_preview=True, parse_mode="HTML"
+        )
         context.user_data["state"] = UserState.IDLE
         return
 
@@ -123,7 +157,7 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         template = templates.get("not_found", "id_not_found.txt")
     text = render_template(template, membership_id=raw_id, lang=lang)
-    await update.message.reply_text(text)
+    await update.message.reply_text(text, parse_mode="HTML")
     context.user_data["state"] = UserState.IDLE
 
 

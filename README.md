@@ -74,16 +74,17 @@
    **`ui_config.yaml` — интерфейс и шаблоны**
    - `start` – параметры стартового сообщения: файл шаблона, текст кнопки,
      флаг `enabled_image` и набор картинок по языкам.
-   - `messages` – соответствие событий имени шаблона: `ask_id`, `waiting`,
-     `banned`, `not_found`, `granted`, `denied`, `warning`, `expired`,
-     `admin_request`, `renewal_warning`, `grace_warning`,
-     `renewal_requested_admin`, `links_unavailable`.
+  - `messages` – соответствие событий имени шаблона: `ask_id`, `waiting`,
+    `banned`, `not_found`, `granted`, `denied`, `warning`, `expired`,
+    `admin_request`, `renewal_warning`, `grace_warning`,
+    `renewal_requested_admin`, `links_unavailable`, `session_timeout`.
    - `admin_interface` – подписи для кнопок администратора. Шаблон
      `approve_template` принимает `{period}`.
    - `language_prompt` – шаблон и картинка для смены языка через `/language`.
-   - `start_language_prompt` – шаблон и картинка для первичного выбора языка на `/start`.
-   - `post_join` – сообщение после вступления в чат: шаблон, опциональная
-     картинка и флаг `enabled`.
+  - `start_language_prompt` – шаблон и картинка для первичного выбора языка на `/start`.
+  - `invalid_id_prompt` – уведомление о некорректном ID с опциональной картинкой.
+  - `post_join` – сообщение после вступления в чат: шаблон, опциональная
+    картинка и флаг `enabled`.
 
    Пример `ui_config.yaml`:
    ```yaml
@@ -104,6 +105,7 @@
      not_found: id_not_found.txt
      granted: access_granted.txt
      denied: access_denied.txt
+     session_timeout: session_timeout.txt
 
   admin_interface:
     approve_template:
@@ -132,6 +134,10 @@
    start_language_prompt:
      enabled_image: false
      template: start_language_prompt.txt
+
+   invalid_id_prompt:
+     enabled_image: false
+     template: id_invalid.txt
 
    post_join:
      enabled: true
