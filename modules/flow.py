@@ -124,7 +124,18 @@ async def handle_idle_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
     button_text = telegram_start.get("action_button_text", "Получить доступ")
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(text=button_text, callback_data="request_access")]])
-    await update.message.reply_text(text, reply_markup=keyboard)
+    if telegram_start.get("enabled_image", True):
+        await send_localized_image_with_text(
+            bot=context.bot,
+            chat_id=update.effective_chat.id,
+            asset_key="start.image",
+            cfg_section=telegram_start,
+            lang=lang,
+            text=text,
+            reply_markup=keyboard,
+        )
+    else:
+        await update.message.reply_text(text, reply_markup=keyboard)
 
 
 @log_async_call

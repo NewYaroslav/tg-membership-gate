@@ -31,3 +31,32 @@ def test_member_flow(tmp_path):
     db.upsert_media_cache("start.image", "en", "hash", "file")
     cache = db.get_media_cache("start.image", "en")
     assert cache["file_id"] == "file"
+
+
+def test_upsert_member_rebind(tmp_path):
+    db_file = tmp_path / "db.sqlite"
+    db = SQLiteAdapter(str(db_file))
+    db.init()
+    # initial bind
+    db.upsert_member("A", 1, None, None)
+    # same telegram, new membership id
+    db.upsert_member("B", 1, None, None)
+    assert db.get_member_by_membership_id("B")["telegram_id"] == 1
+    assert db.get_member_by_membership_id("A") is None
+    assert db.get_member_by_telegram(1)["membership_id"] == "B"
+
+
+def test_upsert_member_swap(tmp_path):
+    db_file = tmp_path / "db.sqlite"
+    db = SQLiteAdapter(str(db_file))
+    db.init()
+    db.upsert_member("A", 1, None, None)
+    db.upsert_member("B", 2, None, None)
+    # telegram 1 now sends membership B
+    db.upsert_member("B", 1, None, None)
+    assert db.get_member_by_membership_id("B")["telegram_id"] == 1
+    m_a = db.get_member_by_membership_id("A")
+    assert m_a is not None
+    assert m_a["telegram_id"] is None
+    assert db.get_member_by_telegram(2) is None
+    assert db.get_member_by_telegram(1)["membership_id"] == "B"

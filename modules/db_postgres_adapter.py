@@ -120,25 +120,73 @@ class PostgresAdapter(DatabaseAdapter):
         full_name: str | None,
         is_confirmed: bool = False,
     ) -> None:
-        self._run(
-            """
-            INSERT INTO users (telegram_id, username, full_name)
-            VALUES (%s,%s,%s)
-            ON CONFLICT(telegram_id) DO UPDATE SET
-                username=EXCLUDED.username,
-                full_name=EXCLUDED.full_name
-            """,
-            [telegram_id, username, full_name],
-        )
-        self._run(
-            """
-            INSERT INTO members (membership_id, telegram_id, is_confirmed)
-            VALUES (%s,%s,%s)
-            ON CONFLICT(membership_id) DO UPDATE SET
-                telegram_id=EXCLUDED.telegram_id
-            """,
-            [membership_id, telegram_id, is_confirmed],
-        )
+        try:
+            with psycopg2.connect(**self.conn_params) as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    # upsert user row --------------------------------------------
+                    cur.execute(
+                        """
+                        INSERT INTO users (telegram_id, username, full_name)
+                        VALUES (%s,%s,%s)
+                        ON CONFLICT(telegram_id) DO UPDATE SET
+                            username=EXCLUDED.username,
+                            full_name=EXCLUDED.full_name
+                        """,
+                        (telegram_id, username, full_name),
+                    )
+
+                    # fetch member rows with lock --------------------------------
+                    cur.execute(
+                        "SELECT * FROM members WHERE membership_id=%s FOR UPDATE",
+                        (membership_id,),
+                    )
+                    row_mid = cur.fetchone()
+                    cur.execute(
+                        "SELECT * FROM members WHERE telegram_id=%s FOR UPDATE",
+                        (telegram_id,),
+                    )
+                    row_tid = cur.fetchone()
+
+                    ic = bool(is_confirmed)
+
+                    if row_mid and not row_tid:
+                        # A. membership exists, telegram not bound yet
+                        cur.execute(
+                            "UPDATE members SET telegram_id=%s, is_confirmed=COALESCE(is_confirmed, %s) WHERE id=%s",
+                            (telegram_id, ic, row_mid["id"]),
+                        )
+                    elif not row_mid and row_tid:
+                        # B. telegram has other membership -> rebind
+                        cur.execute(
+                            "UPDATE members SET membership_id=%s, is_confirmed=COALESCE(is_confirmed, %s) WHERE id=%s",
+                            (membership_id, ic, row_tid["id"]),
+                        )
+                    elif row_mid and row_tid and row_mid["id"] != row_tid["id"]:
+                        # C. conflicting pairs
+                        cur.execute(
+                            "UPDATE members SET telegram_id=NULL WHERE id=%s",
+                            (row_tid["id"],),
+                        )
+                        cur.execute(
+                            "UPDATE members SET telegram_id=%s, is_confirmed=COALESCE(is_confirmed, %s) WHERE id=%s",
+                            (telegram_id, ic, row_mid["id"]),
+                        )
+                    elif row_mid and row_tid and row_mid["id"] == row_tid["id"]:
+                        # existing mapping, ensure confirmed
+                        cur.execute(
+                            "UPDATE members SET is_confirmed=COALESCE(is_confirmed, %s) WHERE id=%s",
+                            (ic, row_mid["id"]),
+                        )
+                    else:
+                        # D. create new row
+                        cur.execute(
+                            "INSERT INTO members (membership_id, telegram_id, is_confirmed) VALUES (%s,%s,%s)",
+                            (membership_id, telegram_id, ic),
+                        )
+                    conn.commit()
+        except Exception as exc:
+            logger.error("Database error in db_upsert_member: %s", exc)
+            raise
 
     def set_confirmation(self, membership_id: str, is_confirmed: bool, expires_at: datetime | None = None) -> None:
         self._run(
