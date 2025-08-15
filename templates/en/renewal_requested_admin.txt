@@ -1,1 +1,1 @@
-Пользователь {username} ({membership_id}) запросил продление: {plan_label} ({plan_period}).
+User {username} ({membership_id}) requested renewal: {plan_label} ({plan_period}).

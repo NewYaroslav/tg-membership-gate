@@ -1,4 +1,4 @@
-Ваш доступ подтверждён.
-{% if links %}Ссылки для входа:
+Your access has been granted.
+{% if links %}Links to join:
 {% for link in links %}- {{ link }}
 {% endfor %}{% endif %}

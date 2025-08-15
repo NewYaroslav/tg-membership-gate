@@ -1,1 +1,1 @@
-ID {{ membership_id }} не найден в базе. Запрос отправлен администратору.
+ID {{ membership_id }} not found. Request sent to an administrator.

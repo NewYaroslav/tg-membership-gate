@@ -1,1 +1,1 @@
-Спасибо! Мы проверим ваш ID {{ membership_id }}. Ожидайте решения.
+Thank you! We'll check your ID {{ membership_id }}. Please wait for a decision.

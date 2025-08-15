@@ -1,2 +1,2 @@
-Привет, {{ username }}!
-Для доступа нажмите кнопку ниже.
+Hi, {{ username }}!
+Press the button below to request access.

@@ -1,1 +1,1 @@
-ID {{ membership_id }} не найден.
+ID {{ membership_id }} not found.

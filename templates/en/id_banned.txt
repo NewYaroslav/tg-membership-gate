@@ -1,1 +1,1 @@
-ID {{ membership_id }} заблокирован. Доступ запрещён.
+ID {{ membership_id }} is banned. Access denied.

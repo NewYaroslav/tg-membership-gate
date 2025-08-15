@@ -1,6 +1,6 @@
 ID участника: {{ membership_id }}
-Telegram ID: {{ telegram_id }}
-Username: {{ username }}
+ID в Telegram: {{ telegram_id }}
+Имя пользователя: {{ username }}
 Подтверждён: {{ is_confirmed }}
 Забанен: {{ is_banned }}
 Статус: {{ status }}

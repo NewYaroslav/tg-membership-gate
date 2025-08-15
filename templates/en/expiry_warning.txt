@@ -1,1 +1,1 @@
-Ваш доступ истекает через {{ remaining }}. Продлите его, чтобы сохранить доступ.
+Your access expires in {{ remaining }}. Renew to keep access.

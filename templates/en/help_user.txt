@@ -1,1 +1,1 @@
-Используйте /start, чтобы запросить доступ.
+Use /start to request access.
