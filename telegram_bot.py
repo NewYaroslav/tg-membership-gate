@@ -32,6 +32,8 @@ from modules.log_utils import log_async_call, log_sync_call
 from modules.logging_config import logger
 from modules.inactivity import check_user_inactivity_loop
 from modules.membership_checker import check_membership_expiry_loop
+from modules.service_messages import suppress_service
+from modules.config import behavior
 
 # Консоль и логгер
 console = Console()
@@ -72,22 +74,31 @@ def run_telegram_bot():
     db_init()
 
     app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
+    app.bot_data["suppress_service_messages"] = behavior.get("suppress_service_messages", True)
 
-    app.add_handler(CommandHandler("start", handle_start_command))
-    app.add_handler(CommandHandler("help", handle_help_command))
-    app.add_handler(CommandHandler("language", cmd_language))
-    app.add_handler(CommandHandler("ban", handle_ban))
-    app.add_handler(CommandHandler("unban", handle_unban))
-    app.add_handler(CommandHandler("kick", handle_kick))
-    app.add_handler(CommandHandler("remove", handle_remove))
-    app.add_handler(CommandHandler("export_users", handle_export))
-    app.add_handler(CommandHandler("user", handle_user))
-    app.add_handler(CallbackQueryHandler(handle_user_action, pattern=r"^admin:(ban|unban|kick|remove):"))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, route_message))
-    app.add_handler(CallbackQueryHandler(on_lang_pick, pattern=r"^lang:"))
-    app.add_handler(CallbackQueryHandler(handle_inline_button))
-    app.add_handler(ChatJoinRequestHandler(on_join_request))
-    app.add_handler(ChatMemberHandler(on_chat_member, ChatMemberHandler.CHAT_MEMBER))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, suppress_service), group=0)
+    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, suppress_service), group=0)
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_TITLE, suppress_service), group=0)
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_PHOTO, suppress_service), group=0)
+    app.add_handler(MessageHandler(filters.StatusUpdate.DELETE_CHAT_PHOTO, suppress_service), group=0)
+    app.add_handler(MessageHandler(filters.StatusUpdate.PINNED_MESSAGE, suppress_service), group=0)
+    app.add_handler(MessageHandler(filters.StatusUpdate.MESSAGE_AUTO_DELETE_TIMER_CHANGED, suppress_service), group=0)
+
+    app.add_handler(CommandHandler("start", handle_start_command), group=1)
+    app.add_handler(CommandHandler("help", handle_help_command), group=1)
+    app.add_handler(CommandHandler("language", cmd_language), group=1)
+    app.add_handler(CommandHandler("ban", handle_ban), group=1)
+    app.add_handler(CommandHandler("unban", handle_unban), group=1)
+    app.add_handler(CommandHandler("kick", handle_kick), group=1)
+    app.add_handler(CommandHandler("remove", handle_remove), group=1)
+    app.add_handler(CommandHandler("export_users", handle_export), group=1)
+    app.add_handler(CommandHandler("user", handle_user), group=1)
+    app.add_handler(CallbackQueryHandler(handle_user_action, pattern=r"^admin:(ban|unban|kick|remove):"), group=1)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, route_message), group=1)
+    app.add_handler(CallbackQueryHandler(on_lang_pick, pattern=r"^lang:"), group=1)
+    app.add_handler(CallbackQueryHandler(handle_inline_button), group=1)
+    app.add_handler(ChatJoinRequestHandler(on_join_request), group=1)
+    app.add_handler(ChatMemberHandler(on_chat_member, ChatMemberHandler.CHAT_MEMBER), group=1)
 
     console.print("[bold green]Telegram bot is running[/bold green]")
     logger.info("Telegram bot is now polling for messages")
