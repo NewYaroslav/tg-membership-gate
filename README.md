@@ -28,20 +28,44 @@
    - `BOT_TOKEN` – токен бота от `@BotFather`.
    - `ROOT_ADMIN_ID` – Telegram ID администратора для уведомлений.
    - `DB_BACKEND` – `sqlite` или `postgres`.
-   - `SQLITE_DB_PATH` или параметры `PG_*` – путь к БД.
+   - `SQLITE_DB_PATH` – путь к файлу базы (для SQLite).
+   - `PG_HOST` – хост PostgreSQL (по умолчанию `127.0.0.1`).
+   - `PG_PORT` – порт PostgreSQL (по умолчанию `5432`).
+   - `PG_DB` – имя базы данных.
+   - `PG_USER` – имя пользователя.
+   - `PG_PASSWORD` – пароль пользователя.
+   - `PG_SSLMODE` – режим SSL (`disable`, `require` и т.д.).
    - `ACCESS_CHATS` – ID чатов/каналов, из которых нужно удалять при окончании доступа.
    - `JOIN_INVITE_LABEL_PREFIX` – опциональный префикс для создаваемых заявочных ссылок.
 
-   Пример `.env`:
+   Пример `.env` для SQLite:
    ```env
    BOT_TOKEN=123456:ABCDEF
    ROOT_ADMIN_ID=123456789
    ACCESS_CHATS=-1001111111,-1002222222
    DB_BACKEND=sqlite
    SQLITE_DB_PATH=./db.sqlite3
-   # Для PostgreSQL используйте DB_BACKEND=postgres и переменные PG_*
    ```
 
+   Пример `.env` для PostgreSQL:
+   ```env
+   BOT_TOKEN=123456:ABCDEF
+   ROOT_ADMIN_ID=123456789
+   ACCESS_CHATS=-1001111111,-1002222222
+   DB_BACKEND=postgres
+   PG_HOST=localhost
+   PG_PORT=5432
+   PG_DB=tg_gate
+   PG_USER=gate_user
+   PG_PASSWORD=secret
+   PG_SSLMODE=disable
+   ```
+
+   Перед запуском создайте в PostgreSQL пользователя и базу:
+   ```sql
+   CREATE USER gate_user WITH PASSWORD 'secret';
+   CREATE DATABASE tg_gate OWNER gate_user;
+   ```
 
 3. **Конфигурация (`config/`)**
    Все параметры бота вынесены в три YAML‑файла:
