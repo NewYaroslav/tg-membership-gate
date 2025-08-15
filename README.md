@@ -15,6 +15,7 @@
 - Два бэкенда базы данных: SQLite (по умолчанию) и PostgreSQL. Переключение через `.env`.
 - Набор админ‑команд: `/ban`, `/unban`, `/kick`, `/remove`, `/export_users`, `/user`.
 - Выбор языка командой `/language` и локализация шаблонов и изображений.
+- Персонализированное приветствие с именем пользователя и локализованным именем по умолчанию.
 - Все тексты вынесены в Jinja2‑шаблоны (`templates/`).
 
 ## ⚙️ Настройка
@@ -177,7 +178,7 @@
      умолчанию и предлагает выбрать язык командой `/language`.
    - `i18n.default_lang` и `supported_langs` – язык по умолчанию и список
      поддерживаемых языков.
-   - `i18n_buttons` – подписи кнопок выбора языка (`language_choices`).
+   - `i18n_buttons` – подписи кнопок выбора языка (`language_choices`) и fallback-имя `default_username`.
 
    Пример `i18n.yaml`:
    ```yaml
@@ -188,11 +189,13 @@
 
    i18n_buttons:
      en:
+       default_username: "Friend"
        choose_language_title: "Choose your language"
        language_choices:
          en: "English"
          ru: "Русский"
      ru:
+       default_username: "Друг"
        choose_language_title: "Выберите язык"
        language_choices:
          en: "English"

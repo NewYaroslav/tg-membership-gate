@@ -11,6 +11,16 @@ from modules.states import UserState
 SUPPORTED = set(i18n.get("supported_langs", []))
 DEFAULT_LANG = i18n.get("default_lang", "en")
 
+
+def make_username(user, lang: str) -> str:
+    first = getattr(user, "first_name", "") or ""
+    last = getattr(user, "last_name", "") or ""
+    name = (first + " " + last).strip()
+    if not name:
+        lang_cfg = i18n_buttons.get(lang, i18n_buttons.get(DEFAULT_LANG, {}))
+        name = lang_cfg.get("default_username", "User")
+    return name
+
 def normalize_lang(code: str | None) -> str:
     if not code:
         return DEFAULT_LANG
@@ -41,6 +51,7 @@ async def send_language_prompt(update, context, cfg, *, asset_prefix: str, defau
     from modules.template_engine import render_template
 
     lang_ui = normalize_lang(getattr(update.effective_user, "language_code", None))
+    username = make_username(update.effective_user, lang_ui)
     lang_cfg = i18n_buttons.get(lang_ui, i18n_buttons.get(DEFAULT_LANG, {}))
     titles = lang_cfg.get("language_choices", {})
     row = [
@@ -48,7 +59,7 @@ async def send_language_prompt(update, context, cfg, *, asset_prefix: str, defau
         for code in i18n.get("supported_langs", [])
     ]
     kb = InlineKeyboardMarkup([row])
-    text = render_template(cfg.get("template", default_template), lang=lang_ui)
+    text = render_template(cfg.get("template", default_template), lang=lang_ui, username=username)
     if cfg.get("enabled_image"):
         await send_localized_image_with_text(
             bot=context.bot,

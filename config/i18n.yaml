@@ -5,11 +5,13 @@ i18n:
 
 i18n_buttons:
   en:
+    default_username: "Friend"
     choose_language_title: "Choose your language"
     language_choices:
       en: "English"
       ru: "Русский"
   ru:
+    default_username: "Друг"
     choose_language_title: "Выберите язык"
     language_choices:
       en: "English"

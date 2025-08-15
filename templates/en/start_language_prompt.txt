@@ -1,1 +1,2 @@
+Hello, {{ username }}!
 Please choose your language:

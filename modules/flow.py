@@ -21,7 +21,7 @@ from modules.auth_utils import is_admin
 from modules.states import UserState
 from modules.template_engine import render_template
 from modules.media_utils import send_localized_image_with_text
-from modules.i18n import normalize_lang, resolve_user_lang
+from modules.i18n import normalize_lang, resolve_user_lang, make_username
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
 from modules.time_utils import humanize_period
@@ -67,7 +67,6 @@ async def handle_request_button(update: Update, context: ContextTypes.DEFAULT_TY
 async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     raw_id = update.message.text.strip()
-    username = user.first_name or user.username or "user"
     lang = _user_lang(update)
 
     if not id_pattern.fullmatch(raw_id):
@@ -119,8 +118,8 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
 
 @log_async_call
 async def handle_idle_state(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    username = update.effective_user.first_name or update.effective_user.username or "user"
     lang = _user_lang(update)
+    username = make_username(update.effective_user, lang)
     text = render_template(telegram_start.get("template", "start_user.txt"), username=username, lang=lang)
     button_text = telegram_start.get("action_button_text", "Получить доступ")
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(text=button_text, callback_data="request_access")]])
