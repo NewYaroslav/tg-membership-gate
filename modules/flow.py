@@ -176,6 +176,7 @@ async def handle_id_submission(update: Update, context: ContextTypes.DEFAULT_TYP
         template = templates.get("not_found", "id_not_found.txt")
     text = render_template(template, membership_id=raw_id, lang=lang)
     await update.message.reply_text(text, parse_mode="HTML")
+    clear_user_activity(user.id)
     context.user_data["state"] = UserState.IDLE
 
 
