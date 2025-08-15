@@ -1,0 +1,1 @@
+Removed {{ username }} ({{ id }}) [{{ membership_id }}] from {{ ok }}/{{ total }} chats; DB records deleted.
