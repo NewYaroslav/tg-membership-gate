@@ -1,0 +1,4 @@
+Вам предоставлен доступ.
+{% if links %}Ссылки для вступления:
+{% for link in links %}- {{ link }}
+{% endfor %}{% endif %}
