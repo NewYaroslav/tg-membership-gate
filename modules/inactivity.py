@@ -1,12 +1,11 @@
 import asyncio
 from datetime import datetime, timedelta
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from modules.template_engine import render_template
-from modules.config import session_timeout, telegram_start
+from modules.config import session_timeout, templates
 from modules.storage import db_get_user_locale
-from modules.i18n import normalize_lang, make_username, get_button_text
+from modules.i18n import normalize_lang
 from modules.states import UserState
 from modules.log_utils import log_async_call
 from modules.logging_config import logger
@@ -37,22 +36,16 @@ async def check_user_inactivity_loop(app) -> None:
             try:
                 if send_message:
                     lang = normalize_lang(db_get_user_locale(uid))
-                    username = make_username(None, lang)
                     text = render_template(
-                        telegram_start.get("template", "start_user.txt"),
-                        username=username,
+                        templates.get("session_timeout", "session_timeout.txt"),
                         lang=lang,
                     )
-                    button_text = get_button_text(
-                        telegram_start.get("action_button_text"), lang, "Get access"
+                    await context.bot.send_message(
+                        chat_id=uid, text=text, parse_mode="HTML"
                     )
-                    keyboard = InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(text=button_text, callback_data="request_access")]]
-                    )
-                    await context.bot.send_message(chat_id=uid, text=text, reply_markup=keyboard)
                 ud = context.application.user_data.get(uid)
                 if isinstance(ud, dict):
-                    ud["state"] = UserState.WAITING_FOR_REQUEST_BUTTON
+                    ud["state"] = UserState.IDLE
                 logger.info("User %s reset after inactivity", uid)
             except Exception as e:
                 logger.exception("Failed to reset user %s: %s", uid, e)

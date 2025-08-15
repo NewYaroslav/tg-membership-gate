@@ -8,7 +8,7 @@ from modules.states import UserState
 from modules.config import telegram_start, start_language_prompt, i18n as i18n_cfg
 from modules.auth_utils import is_admin
 from modules.log_utils import log_async_call
-from modules.inactivity import clear_user_activity
+from modules.inactivity import clear_user_activity, update_user_activity
 from modules.i18n import (
     resolve_user_lang,
     send_language_prompt,
@@ -59,6 +59,7 @@ async def handle_start_command(update: Update, context: ContextTypes.DEFAULT_TYP
             reply_markup=keyboard,
             parse_mode="HTML",
         )
+    update_user_activity(user)
 
 
 @log_async_call
