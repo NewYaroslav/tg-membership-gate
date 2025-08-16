@@ -26,9 +26,13 @@ messages:
   session_timeout: session_timeout.txt
 
 admin_interface:
+  lifetime_text:
+    en: "lifetime"
+    ru: "бессрочно"
+
   approve_template:
     en: "Approve for {period}"
-    ru: "Разрешить на {period}"
+    ru: "Подтвердить на {period}"
   decline_text:
     en: "Decline"
     ru: "Отклонить"

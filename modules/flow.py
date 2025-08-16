@@ -53,8 +53,15 @@ def build_admin_keyboard(membership_id: str, lang: str = DEFAULT_LANG) -> Inline
     buttons: List[List[InlineKeyboardButton]] = []
     approve_seconds = admin_buttons.get("approve_durations", [])
     for sec in approve_seconds:
-        period = humanize_period(int(sec))
-        tmpl = get_button_text(admin_ui.get("approve_template"), lang, "Approve")
+        sec = int(sec)
+        period = (
+            get_button_text(admin_ui.get("lifetime_text"), lang, "lifetime")
+            if sec == 0
+            else humanize_period(sec)
+        )
+        tmpl = get_button_text(
+            admin_ui.get("approve_template"), lang, "Approve for {period}"
+        )
         text = tmpl.format(period=period)
         buttons.append(
             [InlineKeyboardButton(text=text, callback_data=f"approve:{membership_id}:{sec}")]
@@ -232,7 +239,12 @@ async def handle_renewal_selection(update: Update, context: ContextTypes.DEFAULT
         await query.answer(render_template("unknown_action.txt"), show_alert=True)
         return
     seconds = int(plan.get("duration_sec", 0))
-    period = "бессрочно" if seconds == 0 else humanize_period(seconds)
+    lang_admin = DEFAULT_LANG  # (минимальный вариант; если есть язык админки — подставить его)
+    period = (
+        get_button_text(admin_ui.get("lifetime_text"), lang_admin, "lifetime")
+        if seconds == 0
+        else humanize_period(seconds)
+    )
     admin_text = render_template(
         templates.get("renewal_requested_admin", "renewal_requested_admin.txt"),
         username=member.get("username"),
@@ -241,9 +253,9 @@ async def handle_renewal_selection(update: Update, context: ContextTypes.DEFAULT
         plan_period=period,
     )
     approve_tmpl = get_button_text(
-        admin_ui.get("approve_template"), DEFAULT_LANG, "Approve for {period}"
+        admin_ui.get("approve_template"), lang_admin, "Approve for {period}"
     )
-    decline_text = get_button_text(admin_ui.get("decline_text"), DEFAULT_LANG, "Decline")
+    decline_text = get_button_text(admin_ui.get("decline_text"), lang_admin, "Decline")
     keyboard = InlineKeyboardMarkup(
         [
             [
