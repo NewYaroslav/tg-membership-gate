@@ -1,4 +1,5 @@
-# tg-membership-gate
+# Tg-Bot Membership Gate
+<img src="docs/logo.png" alt="Logo" width="600"/>
 
 Телеграм‑бот, который управляет доступом в закрытые чаты/каналы по реферальному ID.
 
